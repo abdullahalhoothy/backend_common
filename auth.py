@@ -1,8 +1,10 @@
-from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
-from fastapi import Depends, HTTPException, status
+from datetime import datetime
+from typing import Any, Dict
+
+from fastapi import Depends, HTTPException, status, Request
+
 from fastapi.security import OAuth2PasswordBearer
-from all_types.myapi_dtypes import (
+from backend_common.myapi_dtypes import (
     ReqCreateUserProfile,
     ReqUserLogin,
     ReqUserProfile,
@@ -12,20 +14,48 @@ from all_types.myapi_dtypes import (
     ReqRefreshToken,
     ReqChangeEmail,
 )
-from storage import load_user_profile, update_user_profile
+from backend_common.config import CONF
+from backend_common.storage import load_user_profile, update_user_profile
 import requests
 import os
 from firebase_admin import auth
 import firebase_admin
 from firebase_admin import credentials
-from config_factory import get_conf
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-CONF = get_conf()
+
 if os.path.exists(CONF.firebase_sp_path):
     cred = credentials.Certificate(CONF.firebase_sp_path)
     default_app = firebase_admin.initialize_app(cred)
+
+
+class JWTBearer(HTTPBearer):
+    """This class is to make endpoints secure with JWT"""
+    def __init__(self, auto_error: bool = True):
+        super(JWTBearer, self).__init__(auto_error=auto_error)
+
+    async def __call__(self, request: Request):
+        self.request = request
+        credentials_obj: HTTPAuthorizationCredentials = await super(JWTBearer, self).__call__(request)
+        if credentials_obj:
+            if not credentials_obj.scheme == "Bearer":
+                raise HTTPException(status_code=403, detail="Invalid authentication scheme.")
+            if not self.verify_jwt(credentials_obj.credentials):
+                raise HTTPException(status_code=403, detail="Invalid token or expired token.")
+            return credentials_obj.credentials
+        else:
+            raise HTTPException(status_code=403, detail="Invalid authorization code.")
+
+    def verify_jwt(self, jwt_token: str) -> bool:
+        decoded_token = my_verify_id_token(jwt_token)
+        token_user_id = decoded_token["uid"]
+        # Check if the token user_id matches the requested user_id
+        if hasattr(self.request.request_body, "user_id") and token_user_id != self.request.request_body.user_id:
+            return False
+        return True
 
 
 async def create_user_profile(req: ReqCreateUserProfile) -> Dict[str, str]:
@@ -120,7 +150,7 @@ async def refresh_id_token(req: ReqRefreshToken) -> Dict[str, str]:
         ) from e
 
 
-async def my_verify_id_token(token: str = Depends(oauth2_scheme)):
+def my_verify_id_token(token: str = Depends(oauth2_scheme)):
     try:
         return auth.verify_id_token(token)
     except auth.InvalidIdTokenError as e:
@@ -209,7 +239,6 @@ async def make_firebase_api_request(url, payload):
             status_code=e.response.status_code,
             detail=e.response.json().get("error", {}).get("message"),
         ) from e
-
 
 
 async def get_user_email_and_username(user_id: str):

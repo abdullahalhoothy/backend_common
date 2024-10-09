@@ -48,8 +48,11 @@ class Database:
     @asynccontextmanager
     async def connection(cls):
         pool = await cls.get_pool()
-        async with pool.acquire() as conn:
-            yield conn
+        try:
+            async with pool.acquire() as conn:
+                yield conn
+        finally:
+            await conn.release()
 
     @classmethod
     async def fetch(cls, query: str, *args):
