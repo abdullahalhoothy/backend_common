@@ -10,11 +10,11 @@ from contextlib import asynccontextmanager
 from fastapi import HTTPException, status
 from pydantic import BaseModel
 
-from myapi_dtypes import ReqLocation, ReqFetchDataset, ReqRealEstate
-from config_factory import get_conf
-from logging_wrapper import apply_decorator_to_module
+from backend_common.myapi_dtypes import ReqLocation, ReqFetchDataset, ReqRealEstate
+from backend_common.config_factory import get_conf
+from backend_common.logging_wrapper import apply_decorator_to_module
 
-from logger import logging
+from backend_common.logger import logging
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Depends
-from auth import JWTBearer
+from backend_common.auth import JWTBearer
 
 
 app = FastAPI()
