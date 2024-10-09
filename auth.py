@@ -4,7 +4,7 @@ from typing import Any, Dict
 from fastapi import Depends, HTTPException, status, Request
 
 from fastapi.security import OAuth2PasswordBearer
-from all_types.myapi_dtypes import (
+from myapi_dtypes import (
     ReqCreateUserProfile,
     ReqUserLogin,
     ReqUserProfile,
@@ -239,7 +239,6 @@ async def make_firebase_api_request(url, payload):
             status_code=e.response.status_code,
             detail=e.response.json().get("error", {}).get("message"),
         ) from e
-
 
 
 async def get_user_email_and_username(user_id: str):
