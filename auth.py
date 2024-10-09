@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional, Annotated, Callable, Awaitable, Type
+from typing import Any, Dict, Optional, Annotated, Callable, Awaitable, Type, TypeVar
 import uuid
 
 from fastapi import Depends, HTTPException, status, Request
+from pydantic import BaseModel
+
 from fastapi.security import OAuth2PasswordBearer
 from all_types.myapi_dtypes import (
     ReqCreateUserProfile,
@@ -14,21 +16,26 @@ from all_types.myapi_dtypes import (
     ReqRefreshToken,
     ReqChangeEmail,
 )
-# from storage import load_user_profile, update_user_profile
+from config import CONF
+from storage import load_user_profile, update_user_profile
 import requests
 import os
 from firebase_admin import auth
 import firebase_admin
 from firebase_admin import credentials
-from config_factory import get_conf
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-CONF = get_conf()
+
+
 if os.path.exists(CONF.firebase_sp_path):
     cred = credentials.Certificate(CONF.firebase_sp_path)
     default_app = firebase_admin.initialize_app(cred)
+
+
+T = TypeVar("T", bound=BaseModel)
+U = TypeVar("U", bound=BaseModel)
 
 
 async def request_handling(
