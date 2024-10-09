@@ -1,9 +1,7 @@
-from datetime import datetime, timedelta
-from typing import Any, Dict, Optional, Annotated, Callable, Awaitable, Type, TypeVar
-import uuid
+from datetime import datetime
+from typing import Any, Dict
 
 from fastapi import Depends, HTTPException, status, Request
-from pydantic import BaseModel
 
 from fastapi.security import OAuth2PasswordBearer
 from all_types.myapi_dtypes import (
@@ -25,49 +23,13 @@ import firebase_admin
 from firebase_admin import credentials
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 if os.path.exists(CONF.firebase_sp_path):
     cred = credentials.Certificate(CONF.firebase_sp_path)
     default_app = firebase_admin.initialize_app(cred)
-
-
-T = TypeVar("T", bound=BaseModel)
-U = TypeVar("U", bound=BaseModel)
-
-
-async def request_handling(
-    req: Optional[T],
-    input_type: Optional[Type[T]],
-    output_type: Type[U],
-    custom_function: Optional[Callable[..., Awaitable[Any]]],
-):
-    output = ""
-    req = req.request_body
-    input_type.model_validate(req)
-
-    if custom_function is not None:
-        try:
-            output = await custom_function(req=req)
-        except HTTPException:
-            # If it's already an HTTPException, just re-raise it
-            raise
-        except Exception as e:
-            # For any other type of exception, wrap it in an HTTPException
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"An unexpected error occurred: {str(e)}",
-            ) from e
-
-    request_id = "req-" + str(uuid.uuid4())
-    res_body = output_type(
-        message="Request received",
-        request_id=request_id,
-        data=output,
-    )
-    return res_body
 
 
 class JWTBearer(HTTPBearer):
