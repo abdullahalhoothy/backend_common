@@ -215,13 +215,12 @@ async def load_user_profile(user_id: str) -> Dict:
     """
     Loads user data from a database based on the user ID.
     """
-    user_file_path = os.path.join(USERS_PATH, f"user_{user_id}.json")
     try:
 
         user_data = await Database.fetchrow(SqlObject.load_user_profile_query,user_id)
         dict_data = dict(user_data)
         dict_data_json = json.loads(dict_data)
-        prdcer_dataset_processing = dict_data_json ['prdcer_dataset']
+        prdcer_dataset_processing = dict_data_json['prdcer_dataset']
         prdcer_lyrs_proceessing = dict_data_json['prdcer_lyrs']
         prdcer_ctlgs_processing = dict_data_json['prdcer_ctlgs']
         draft_ctlgs_processing = dict_data_json['draft_ctlgs']
