@@ -1,5 +1,5 @@
 from datetime import datetime
-from all_types.stripe_dtypes import ProductReq, PriceReq, PriceRes, ProductRes
+from backend_common.dtypes.stripe_dtypes import ProductReq, PriceReq, PriceRes, ProductRes
 import stripe
 from backend_common.database import Database
 

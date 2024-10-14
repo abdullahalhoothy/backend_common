@@ -2,12 +2,18 @@ import uuid
 from fastapi import HTTPException, status
 from typing import TypeVar, Optional, Type, Callable, Awaitable, Any
 from pydantic import BaseModel
+from logging_wrapper import log_and_validate
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 T = TypeVar("T", bound=BaseModel)
 U = TypeVar("U", bound=BaseModel)
 
 
+@log_and_validate(logger)
 async def request_handling(
     req: Optional[T],
     input_type: Optional[Type[T]],
@@ -31,10 +37,5 @@ async def request_handling(
                 detail=f"An unexpected error occurred: {str(e)}",
             ) from e
 
-    request_id = "req-" + str(uuid.uuid4())
-    res_body = output_type(
-        message="Request received",
-        request_id=request_id,
-        data=output,
-    )
+    res_body = output_type(output)
     return res_body

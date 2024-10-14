@@ -1,6 +1,6 @@
 from datetime import datetime
 from fastapi import HTTPException
-from all_types.stripe_dtypes import (
+from backend_common.dtypes.stripe_dtypes import (
     CustomerReq,
     CustomerRes,
 )

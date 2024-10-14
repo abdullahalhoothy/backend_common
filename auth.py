@@ -4,7 +4,7 @@ from typing import Any, Dict
 from fastapi import Depends, HTTPException, status, Request
 
 from fastapi.security import OAuth2PasswordBearer
-from backend_common.myapi_dtypes import (
+from backend_common.dtypes.auth_dtypes import (
     ReqCreateUserProfile,
     ReqUserLogin,
     ReqUserProfile,
@@ -15,7 +15,7 @@ from backend_common.myapi_dtypes import (
     ReqChangeEmail,
 )
 from backend_common.config import CONF
-from backend_common.storage import load_user_profile, update_user_profile
+from backend_common.common_storage import load_user_profile, update_user_profile
 import requests
 import os
 from firebase_admin import auth
