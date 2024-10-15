@@ -90,6 +90,7 @@ class CustomerReq(BaseModel):
         state: Optional[str] = None
 
     user_id: str
+    phone: str
     address: Optional[Address] = None
     balance: Optional[int] = None
     currency: Optional[str] = None
@@ -97,6 +98,8 @@ class CustomerReq(BaseModel):
     delinquent: Optional[bool] = None
     description: Optional[str] = None
     discount: Optional[Any] = None
+    name: str = None
+    email: str = None
 
     invoice_prefix: Optional[str] = None
     invoice_settings: Optional[Dict[str, Any]] = None
