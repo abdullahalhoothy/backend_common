@@ -12,6 +12,7 @@ class Database:
     pool: Optional[Pool] = None
     last_refresh_time: float = 0
     refresh_interval: int = 3600  # Refresh every hour
+    time.sleep(5)
     dsn: str = os.getenv('DATABASE_URL')
 
     @classmethod
