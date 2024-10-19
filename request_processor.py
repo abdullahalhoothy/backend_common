@@ -1,8 +1,9 @@
+import json
 import uuid
 from fastapi import HTTPException, status
 from typing import TypeVar, Optional, Type, Callable, Awaitable, Any
 from pydantic import BaseModel
-from logging_wrapper import log_and_validate
+from backend_common.logging_wrapper import log_and_validate
 import logging
 
 
@@ -19,10 +20,11 @@ async def request_handling(
     input_type: Optional[Type[T]],
     output_type: Type[U],
     custom_function: Optional[Callable[..., Awaitable[Any]]],
+    output: Optional[T] = ""
 ):
-    output = ""
-    req = req.request_body
-    input_type.model_validate(req)
+    if req:
+        req = req.request_body
+        input_type.model_validate(req)
 
     if custom_function is not None:
         try:
@@ -36,6 +38,5 @@ async def request_handling(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"An unexpected error occurred: {str(e)}",
             ) from e
-
-    res_body = output_type(output)
+    res_body = output_type(**output)
     return res_body

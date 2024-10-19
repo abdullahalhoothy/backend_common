@@ -13,7 +13,7 @@ class Database:
     last_refresh_time: float = 0
     refresh_interval: int = 3600  # Refresh every hour
     time.sleep(5)
-    dsn: str = os.getenv('DATABASE_URL')
+    dsn: str = "postgresql://postgres:postgres@db:5432/mydatabase"
 
     @classmethod
     async def create_pool(cls):
@@ -49,11 +49,8 @@ class Database:
     @asynccontextmanager
     async def connection(cls):
         pool = await cls.get_pool()
-        try:
-            async with pool.acquire() as conn:
-                yield conn
-        finally:
-            await conn.release()
+        async with pool.acquire() as conn:
+            yield conn
 
     @classmethod
     async def fetch(cls, query: str, *args):
@@ -74,7 +71,6 @@ class Database:
                 sql_script = cls.generate_sql_script(query, *args)
                 filename = f"sql_script_{timestamp}_{unique_id}.sql"
                 cls.save_sql_script(filename, sql_script)
-
             return await conn.execute(query, *args)
 
     @staticmethod
