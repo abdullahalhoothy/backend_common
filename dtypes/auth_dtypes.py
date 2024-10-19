@@ -3,15 +3,6 @@ from typing import Dict, List, TypeVar, Generic, Optional, Any
 from pydantic import BaseModel
 
 
-U = TypeVar("U")
-
-
-class ReqModel(BaseModel, Generic[U]):
-    message: str
-    request_info: Dict
-    request_body: U
-
-
 class ReqUserId(BaseModel):
     user_id: str
 
