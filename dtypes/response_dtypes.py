@@ -13,4 +13,4 @@ class ResponseModel(BaseModel, Generic[T]):
 
 
 ConfigurationResponse = ResponseModel[Dict[str, Dict]]
-ConfigurationResponse1 = ResponseModel
+RecommendedProducts = ResponseModel
