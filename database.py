@@ -13,7 +13,7 @@ class Database:
     last_refresh_time: float = 0
     refresh_interval: int = 3600  # Refresh every hour
     time.sleep(5)
-    dsn: str = "postgresql://postgres:postgres@db:5432/mydatabase"
+    dsn: str = os.getenv("DATABASE_URL")
 
     @classmethod
     async def create_pool(cls):
