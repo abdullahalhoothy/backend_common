@@ -7,21 +7,23 @@ from asyncpg.pool import Pool
 from typing import Optional
 from contextlib import asynccontextmanager
 import time
+from backend_common.logging_wrapper import apply_decorator_to_module
+
+from backend_common.logger import logging
+
+logger = logging.getLogger(__name__)
+
 
 class Database:
     pool: Optional[Pool] = None
     last_refresh_time: float = 0
     refresh_interval: int = 3600  # Refresh every hour
     time.sleep(5)
-    dsn: str = os.getenv('DATABASE_URL')
+    dsn: str = os.getenv("DATABASE_URL")
 
     @classmethod
     async def create_pool(cls):
-        cls.pool = await asyncpg.create_pool(
-            dsn=cls.dsn,
-            min_size=1,
-            max_size=10
-        )
+        cls.pool = await asyncpg.create_pool(dsn=cls.dsn, min_size=1, max_size=10)
         cls.last_refresh_time = time.time()
 
     @classmethod
@@ -49,11 +51,9 @@ class Database:
     @asynccontextmanager
     async def connection(cls):
         pool = await cls.get_pool()
-        try:
-            async with pool.acquire() as conn:
-                yield conn
-        finally:
-            await conn.release()
+        async with pool.acquire() as conn:
+            yield conn
+
 
     @classmethod
     async def fetch(cls, query: str, *args):
@@ -81,7 +81,7 @@ class Database:
     def generate_sql_script(query: str, *args) -> str:
         # Replace placeholders with actual values
         for i, arg in enumerate(args, start=1):
-            placeholder = f'${i}'
+            placeholder = f"${i}"
             if isinstance(arg, str):
                 # Escape single quotes in the string and wrap in single quotes
                 escaped_arg = arg.replace("'", "''")
@@ -92,8 +92,8 @@ class Database:
 
     @staticmethod
     def save_sql_script(filename: str, content: str):
-        os.makedirs('sql_scripts', exist_ok=True)
-        with open(os.path.join('sql_scripts', filename), 'w') as f:
+        os.makedirs("sql_scripts", exist_ok=True)
+        with open(os.path.join("sql_scripts", filename), "w") as f:
             f.write(content)
         print(f"SQL script saved as {filename}")
 
@@ -112,3 +112,7 @@ class Database:
             return True
         except Exception:
             return False
+
+
+# Apply the decorator to all functions in this module
+apply_decorator_to_module(logger)(__name__)
