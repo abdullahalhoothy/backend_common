@@ -19,10 +19,11 @@ async def request_handling(
     input_type: Optional[Type[T]],
     output_type: Type[U],
     custom_function: Optional[Callable[..., Awaitable[Any]]],
+    output: Optional[T] = ""
 ):
-    output = ""
-    req = req.request_body
-    input_type.model_validate(req)
+    if req:
+        req = req.request_body
+        input_type.model_validate(req)
 
     if custom_function is not None:
         try:
@@ -37,5 +38,5 @@ async def request_handling(
                 detail=f"An unexpected error occurred: {str(e)}",
             ) from e
 
-    res_body = output_type(output)
+    res_body = output_type(**output)
     return res_body
