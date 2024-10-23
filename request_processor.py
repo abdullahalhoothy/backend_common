@@ -18,6 +18,7 @@ U = TypeVar("U", bound=BaseModel)
 async def request_handling(
     req: Optional[T],
     input_type: Optional[Type[T]],
+    output_type: Optional[Type[U]],
     custom_function: Optional[Callable[..., Awaitable[Any]]],
     output: Optional[T] = ""
 ):
@@ -37,4 +38,5 @@ async def request_handling(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"An unexpected error occurred: {str(e)}",
             ) from e
-    return output
+    res_body = output_type(**output) if output_type else output
+    return res_body
