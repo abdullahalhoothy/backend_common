@@ -8,7 +8,7 @@ import stripe
 from backend_common.database import Database
 import json
 from backend_common.auth import get_user_email_and_username
-from backend_common.sql_object import SqlObject
+from backend_common.common_sql import CommonSql
 
 # customer functions
 async def create_customer(req: CustomerReq) -> CustomerRes:
@@ -28,7 +28,7 @@ async def create_customer(req: CustomerReq) -> CustomerRes:
     # Save the customer in the database
 
     Database.execute(
-        SqlObject.upsert_customer_user_query,
+        CommonSql.firebase_strip_mapping,
         req.user_id,
         customer.id
     )
@@ -75,7 +75,7 @@ async def delete_customer(req) -> dict:
 
     stripe.Customer.delete(customer_id)
 
-    await Database.execute(SqlObject.delete_customer_strip_query, user_id)
+    await Database.execute(CommonSql.delete_customer_strip_query, user_id)
 
     return "Customer deleted"
 
@@ -86,7 +86,7 @@ async def list_customers() -> list[CustomerRes]:
     return [CustomerRes(**customer) for customer in all_customers["data"]]
 
 async def fetch_customer_id(user_id:str):
-    customer_record = await Database.fetchrow(SqlObject.fetch_customer_id_by_user_id__stripe_query, user_id)
+    customer_record = await Database.fetchrow(CommonSql.fetch_customer_id_by_user_id__stripe_query, user_id)
     if not customer_record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="Not Found")
     customer_id = dict(customer_record)["customer_id"]

@@ -7,6 +7,12 @@ from asyncpg.pool import Pool
 from typing import Optional, List
 from contextlib import asynccontextmanager
 import time
+from backend_common.logging_wrapper import apply_decorator_to_module
+
+from backend_common.logger import logging
+
+logger = logging.getLogger(__name__)
+
 
 class Database:
     pool: Optional[Pool] = None
@@ -17,11 +23,7 @@ class Database:
 
     @classmethod
     async def create_pool(cls):
-        cls.pool = await asyncpg.create_pool(
-            dsn=cls.dsn,
-            min_size=1,
-            max_size=10
-        )
+        cls.pool = await asyncpg.create_pool(dsn=cls.dsn, min_size=1, max_size=10)
         cls.last_refresh_time = time.time()
 
     @classmethod
@@ -82,7 +84,7 @@ class Database:
     def generate_sql_script(query: str, *args) -> str:
         # Replace placeholders with actual values
         for i, arg in enumerate(args, start=1):
-            placeholder = f'${i}'
+            placeholder = f"${i}"
             if isinstance(arg, str):
                 # Escape single quotes in the string and wrap in single quotes
                 escaped_arg = arg.replace("'", "''")
@@ -93,8 +95,8 @@ class Database:
 
     @staticmethod
     def save_sql_script(filename: str, content: str):
-        os.makedirs('sql_scripts', exist_ok=True)
-        with open(os.path.join('sql_scripts', filename), 'w') as f:
+        os.makedirs("sql_scripts", exist_ok=True)
+        with open(os.path.join("sql_scripts", filename), "w") as f:
             f.write(content)
         print(f"SQL script saved as {filename}")
 
@@ -113,3 +115,7 @@ class Database:
             return True
         except Exception:
             return False
+
+
+# Apply the decorator to all functions in this module
+apply_decorator_to_module(logger)(__name__)

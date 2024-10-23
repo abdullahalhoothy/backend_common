@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict
+from typing import Dict
 
 from fastapi import Depends, HTTPException, status, Request
 
@@ -7,15 +7,14 @@ from fastapi.security import OAuth2PasswordBearer
 from backend_common.dtypes.auth_dtypes import (
     ReqCreateUserProfile,
     ReqUserLogin,
-    ReqUserProfile,
     ReqResetPassword,
     ReqConfirmReset,
     ReqChangePassword,
     ReqRefreshToken,
     ReqChangeEmail,
 )
-from backend_common.config import CONF
-from backend_common.common_storage import load_user_profile, update_user_profile
+from backend_common.common_config import CONF
+
 import requests
 import os
 from firebase_admin import auth
@@ -34,17 +33,24 @@ if os.path.exists(CONF.firebase_sp_path):
 
 class JWTBearer(HTTPBearer):
     """This class is to make endpoints secure with JWT"""
+
     def __init__(self, auto_error: bool = True):
         super(JWTBearer, self).__init__(auto_error=auto_error)
 
     async def __call__(self, request: Request):
         self.request = request
-        credentials_obj: HTTPAuthorizationCredentials = await super(JWTBearer, self).__call__(request)
+        credentials_obj: HTTPAuthorizationCredentials = await super(
+            JWTBearer, self
+        ).__call__(request)
         if credentials_obj:
             if not credentials_obj.scheme == "Bearer":
-                raise HTTPException(status_code=403, detail="Invalid authentication scheme.")
+                raise HTTPException(
+                    status_code=403, detail="Invalid authentication scheme."
+                )
             if not await self.verify_jwt(credentials_obj.credentials):
-                raise HTTPException(status_code=403, detail="Invalid token or expired token.")
+                raise HTTPException(
+                    status_code=403, detail="Invalid token or expired token."
+                )
             return credentials_obj.credentials
         else:
             raise HTTPException(status_code=403, detail="Invalid authorization code.")
@@ -53,33 +59,22 @@ class JWTBearer(HTTPBearer):
         decoded_token = my_verify_id_token(jwt_token)
         token_user_id = decoded_token["uid"]
         # Check if the token user_id matches the requested user_id
-        if hasattr(self.request.request_body, "user_id") and token_user_id != self.request.request_body.user_id:
+        if (
+            hasattr(self.request.request_body, "user_id")
+            and token_user_id != self.request.request_body.user_id
+        ):
             return False
         return True
 
 
-async def create_user_profile(req: ReqCreateUserProfile) -> Dict[str, str]:
+async def create_user(req: ReqCreateUserProfile) -> Dict[str, str]:
     try:
         # Create user in Firebase
         user = auth.create_user(
             email=req.email, password=req.password, display_name=req.username
         )
 
-        user_data = {
-            "user_id": user.uid,
-            "prdcer": {
-                "prdcer_dataset": {},
-                "prdcer_lyrs": {},
-                "prdcer_ctlgs": {},
-                "draft_ctlgs": {},
-            },
-        }
-
-        # Save additional user data to your database
-        update_user_profile(user.uid, user_data)
-
         # Send user verify email
-
         payload = {
             "email": req.email,
             "password": req.password,
@@ -117,8 +112,7 @@ async def login_user(req: ReqUserLogin) -> Dict[str, str]:
                 return response
             else:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Unverified Email"
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Unverified Email"
                 )
         raise auth.UserNotFoundError(message="")
     except auth.UserNotFoundError as e:
@@ -133,13 +127,15 @@ async def refresh_id_token(req: ReqRefreshToken) -> Dict[str, str]:
         payload = {"grant_type": req.grant_type, "refresh_token": req.refresh_token}
         response = await make_firebase_api_request(CONF.firebase_refresh_token, payload)
         response["created_at"] = datetime.now()
-        response["idToken"]= response["id_token"]
-        response["refreshToken"]= response["refresh_token"]
+        response["idToken"] = response["id_token"]
+        response["refreshToken"] = response["refresh_token"]
         response["expiresIn"] = response["expires_in"]
         response["localId"] = response["user_id"]
         # drop certain keys from reponse like id_token, refresh_token, expires_in, user_id
         keys_to_drop = ["id_token", "refresh_token", "expires_in", "user_id"]
-        response = {key: value for key, value in response.items() if key not in keys_to_drop}
+        response = {
+            key: value for key, value in response.items() if key not in keys_to_drop
+        }
         return response
     except auth.UserNotFoundError as e:
         raise HTTPException(
@@ -163,16 +159,6 @@ def my_verify_id_token(token: str = Depends(oauth2_scheme)):
             detail="Invalid token format",
             headers={"WWW-Authenticate": "Bearer"},
         ) from e
-
-
-async def get_user_account(req: ReqUserProfile) -> Dict[str, Any]:
-    user_data = load_user_profile(req.user_id)
-    if not user_data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-        )
-
-    return user_data
 
 
 async def reset_password(req: ReqResetPassword) -> Dict[str, str]:
@@ -248,10 +234,10 @@ async def get_user_email_and_username(user_id: str):
     except auth.UserNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with ID {user_id} not found"
+            detail=f"User with ID {user_id} not found",
         )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred: {str(e)}"
+            detail=f"An error occurred: {str(e)}",
         )
