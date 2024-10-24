@@ -4,7 +4,7 @@ import uuid
 import os
 import asyncpg
 from asyncpg.pool import Pool
-from typing import Optional
+from typing import Optional, List
 from contextlib import asynccontextmanager
 import time
 from backend_common.logging_wrapper import apply_decorator_to_module
@@ -54,7 +54,6 @@ class Database:
         async with pool.acquire() as conn:
             yield conn
 
-
     @classmethod
     async def fetch(cls, query: str, *args):
         async with cls.connection() as conn:
@@ -74,8 +73,12 @@ class Database:
                 sql_script = cls.generate_sql_script(query, *args)
                 filename = f"sql_script_{timestamp}_{unique_id}.sql"
                 cls.save_sql_script(filename, sql_script)
-
             return await conn.execute(query, *args)
+
+    @classmethod
+    async def execute_many(cls, query: str, entries: List[list]):
+        async with cls.connection() as conn:
+            return await conn.executemany(query, entries)
 
     @staticmethod
     def generate_sql_script(query: str, *args) -> str:
