@@ -9,6 +9,8 @@ from backend_common.database import Database
 import json
 from backend_common.auth import get_user_email_and_username
 from backend_common.common_sql import CommonSql
+from backend_common.request_processor import output_update_with_req_msg
+
 
 # customer functions
 async def create_customer(req: CustomerReq) -> CustomerRes:
@@ -39,6 +41,11 @@ async def create_customer(req: CustomerReq) -> CustomerRes:
     return  customer_json
 
 
+@output_update_with_req_msg
+async def create_customer_old(req: CustomerReq) -> CustomerRes:
+    return await create_customer(req)
+
+
 async def fetch_customer(req) -> CustomerRes:
 
     customer_id = await fetch_customer_id(req.user_id)
@@ -48,6 +55,11 @@ async def fetch_customer(req) -> CustomerRes:
     customer_json = dict(customer)
 
     return customer_json
+
+
+@output_update_with_req_msg
+async def fetch_customer_old(req) -> CustomerRes:
+    return await fetch_customer(req)
 
 
 async def update_customer(req: CustomerReq) -> CustomerRes:
@@ -68,6 +80,10 @@ async def update_customer(req: CustomerReq) -> CustomerRes:
     return customer_json
 
 
+@output_update_with_req_msg
+async def update_customer_old(req: CustomerReq) -> CustomerRes:
+    return await update_customer(req)
+
 async def delete_customer(req) -> dict:
     user_id = req.user_id
 
@@ -80,10 +96,20 @@ async def delete_customer(req) -> dict:
     return "Customer deleted"
 
 
+@output_update_with_req_msg
+async def delete_customer_old(req) -> dict:
+    return await delete_customer(req)
+
+
 async def list_customers() -> list[CustomerRes]:
     all_customers = stripe.Customer.list()
 
     return [CustomerRes(**customer) for customer in all_customers["data"]]
+
+
+@output_update_with_req_msg
+async def list_customers_old() -> list[CustomerRes]:
+    return await list_customers()
 
 async def fetch_customer_id(user_id:str):
     customer_record = await Database.fetchrow(CommonSql.fetch_customer_id_by_user_id__stripe_query, user_id)

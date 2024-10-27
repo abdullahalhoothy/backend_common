@@ -1,7 +1,9 @@
 import json
 import uuid
+from turtle import readconfig
+
 from fastapi import HTTPException, status
-from typing import TypeVar, Optional, Type, Callable, Awaitable, Any
+from typing import TypeVar, Optional, Type, Callable, Awaitable, Any, Required
 from pydantic import BaseModel
 from backend_common.logging_wrapper import log_and_validate
 import logging
@@ -28,7 +30,10 @@ async def request_handling(
 
     if custom_function is not None:
         try:
-            output = await custom_function(req=req)
+            if req:
+                output = await custom_function(req=req.request_body)
+            else:
+                output = await custom_function()
         except HTTPException:
             # If it's already an HTTPException, just re-raise it
             raise
@@ -40,3 +45,15 @@ async def request_handling(
             ) from e
     res_body = output_type(**output) if output_type else output
     return res_body
+
+
+def output_update_with_req_msg(func: Type[T]):
+    """Decorator to update response dictionary"""
+    def update_fields(*args, **kwargs):
+        """Update fields"""
+        return {
+            'data': func(*args, **kwargs),
+            'message': "Request received.",
+            'request_id': "req-" + str(uuid.uuid4())
+        }
+    return update_fields
