@@ -1,6 +1,5 @@
 import json
 import uuid
-from turtle import readconfig
 
 from fastapi import HTTPException, status
 from typing import TypeVar, Optional, Type, Callable, Awaitable, Any, Required
@@ -49,10 +48,10 @@ async def request_handling(
 
 def output_update_with_req_msg(func: Type[T]):
     """Decorator to update response dictionary"""
-    def update_fields(*args, **kwargs):
+    async def update_fields(*args, **kwargs):
         """Update fields"""
         return {
-            'data': func(*args, **kwargs),
+            'data': await func(*args, **kwargs),
             'message': "Request received.",
             'request_id': "req-" + str(uuid.uuid4())
         }
