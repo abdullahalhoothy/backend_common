@@ -59,9 +59,10 @@ class JWTBearer(HTTPBearer):
         decoded_token = my_verify_id_token(jwt_token)
         token_user_id = decoded_token["uid"]
         # Check if the token user_id matches the requested user_id
+        request_body = await self.request.json()
         if (
-            hasattr(self.request.request_body, "user_id")
-            and token_user_id != self.request.request_body.user_id
+            request_body.get("user_id")
+            and token_user_id != request_body.get("user_id")
         ):
             return False
         return True

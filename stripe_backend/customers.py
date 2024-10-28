@@ -24,7 +24,7 @@ async def create_customer(req: CustomerReq) -> CustomerRes:
         address=req.address.model_dump(),
         metadata=req.metadata,
     )
-    
+
     # Save the customer in the database
 
     Database.execute(
@@ -53,7 +53,7 @@ async def fetch_customer(req) -> CustomerRes:
 async def update_customer(req: CustomerReq) -> CustomerRes:
 
     customer_id = await fetch_customer_id(req.user_id)
-    
+
     stripe_customer = stripe.Customer.modify(
         customer_id,
         name=req.name,
