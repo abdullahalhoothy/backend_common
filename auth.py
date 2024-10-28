@@ -127,7 +127,6 @@ async def refresh_id_token(req: ReqRefreshToken) -> Dict[str, str]:
     try:
         payload = {"grant_type": req.grant_type, "refresh_token": req.refresh_token}
         response = await make_firebase_api_request(CONF.firebase_refresh_token, payload)
-        print(response)
         response["created_at"] = datetime.now()
         response["idToken"] = response["id_token"]
         response["refreshToken"] = response["refresh_token"]
