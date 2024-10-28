@@ -62,7 +62,7 @@ class ProductReq(BaseModel):
         can_extend_seats: bool = False
 
     name: str
-    price: PriceReq
+    price: Optional[PriceReq]
     active: Optional[bool] = None
     attributes: List[str] = []
     caption: Optional[str] = None
@@ -73,7 +73,7 @@ class ProductReq(BaseModel):
     package_dimensions: Optional[Any] = None
     shippable: Optional[bool] = None
     statement_descriptor: Optional[str] = None
-    tax_code: Optional[int] = None
+    tax_code: Optional[str] = None
     unit_label: Optional[str] = None
     url: Optional[str] = None
     price_id: Optional[str] = None
