@@ -22,8 +22,6 @@ import firebase_admin
 from firebase_admin import credentials
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from backend_common.request_processor import output_update_with_req_msg
-
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -61,9 +59,10 @@ class JWTBearer(HTTPBearer):
         decoded_token = my_verify_id_token(jwt_token)
         token_user_id = decoded_token["uid"]
         # Check if the token user_id matches the requested user_id
+        request_body = await self.request.json()
         if (
-            hasattr(self.request.request_body, "user_id")
-            and token_user_id != self.request.request_body.user_id
+            request_body.get("user_id")
+            and token_user_id != request_body.get("user_id")
         ):
             return False
         return True
@@ -97,11 +96,6 @@ async def create_user(req: ReqCreateUserProfile) -> Dict[str, str]:
         ) from emialerrror
 
 
-@output_update_with_req_msg
-async def create_user_old(req: ReqCreateUserProfile) -> Dict[str, str]:
-    return await create_user(req)
-
-
 async def login_user(req: ReqUserLogin) -> Dict[str, str]:
     try:
         payload = {
@@ -129,15 +123,11 @@ async def login_user(req: ReqUserLogin) -> Dict[str, str]:
         ) from e
 
 
-@output_update_with_req_msg
-async def login_user_old(req: ReqUserLogin) -> Dict[str, str]:
-    return await login_user(req)
-
-
 async def refresh_id_token(req: ReqRefreshToken) -> Dict[str, str]:
     try:
         payload = {"grant_type": req.grant_type, "refresh_token": req.refresh_token}
         response = await make_firebase_api_request(CONF.firebase_refresh_token, payload)
+        print(response)
         response["created_at"] = datetime.now()
         response["idToken"] = response["id_token"]
         response["refreshToken"] = response["refresh_token"]
@@ -155,10 +145,6 @@ async def refresh_id_token(req: ReqRefreshToken) -> Dict[str, str]:
             detail="Incorrect username or password",
         ) from e
 
-
-@output_update_with_req_msg
-async def refresh_id_token_old(req: ReqRefreshToken) -> Dict[str, str]:
-    return await refresh_id_token(req)
 
 def my_verify_id_token(token: str = Depends(oauth2_scheme)):
     try:
@@ -182,19 +168,11 @@ async def reset_password(req: ReqResetPassword) -> Dict[str, str]:
     response = await make_firebase_api_request(CONF.firebase_sendOobCode, payload)
     return response
 
-@output_update_with_req_msg
-async def reset_password_old(req: ReqResetPassword) -> Dict[str, str]:
-    return await reset_password(req)
 
 async def confirm_reset(req: ReqConfirmReset) -> Dict[str, str]:
     payload = {"oobCode": req.oob_code, "newPassword": req.new_password}
     response = await make_firebase_api_request(CONF.firebase_resetPassword, payload)
     return response
-
-
-@output_update_with_req_msg
-async def confirm_reset_old(req: ReqConfirmReset) -> Dict[str, str]:
-    return await confirm_reset(req)
 
 
 async def change_password(req: ReqChangePassword) -> Dict[str, str]:
@@ -217,11 +195,6 @@ async def change_password(req: ReqChangePassword) -> Dict[str, str]:
     return response
 
 
-@output_update_with_req_msg
-async def change_password_old(req: ReqChangePassword) -> Dict[str, str]:
-    return await change_password(req)
-
-
 async def change_email(req: ReqChangeEmail) -> Dict[str, str]:
     login_req = ReqUserLogin(email=req.current_email, password=req.password)
     response = await login_user(login_req)
@@ -241,9 +214,6 @@ async def change_email(req: ReqChangeEmail) -> Dict[str, str]:
 
     return response
 
-
-async def change_email_old(req: ReqChangeEmail) -> Dict[str, str]:
-    return await change_email(req)
 
 async def make_firebase_api_request(url, payload):
     try:
