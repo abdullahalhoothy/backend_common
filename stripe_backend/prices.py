@@ -215,6 +215,6 @@ async def calculate_seat_based_pricing(product: ProductRes, seats: int) -> str:
             ],
         )
     else:
-        price = product.default_price
+        price = product.price_id
 
     return price.id

@@ -77,6 +77,10 @@ async def create_stripe_product(req: ProductReq) -> ProductRes:
 
 
 async def update_stripe_product(product_id: str, req: ProductReq) -> ProductRes:
+    query = "SELECT * FROM SubscriptionModels WHERE product_id = $1"
+    product_db = await Database.fetchrow(query, product_id)
+    if not product_db:
+        raise HTTPException(status_code=404, detail="Product not found")
     metadata = req.metadata if isinstance(req.metadata, dict) else req.metadata.dict()
     product = stripe.Product.modify(
         product_id,
@@ -92,10 +96,7 @@ async def update_stripe_product(product_id: str, req: ProductReq) -> ProductRes:
         default_price=req.price_id,
     )
     # Update an existing product in Stripe
-    query = "SELECT * FROM SubscriptionModels WHERE product_id = $1"
-    product_db = await Database.fetchrow(query, product_id)
-    if not product_db:
-        raise HTTPException(status_code=404, detail="Product not found")
+
     try:
         query = "UPDATE SubscriptionModels SET name = $1, active = $2, description = $3, images = $4, livemode = $5, metadata = $6, package_dimensions = $7, shippable = $8, statement_descriptor = $9, tax_code = $10, unit_label = $11, url = $12 WHERE product_id = $13 RETURNING *"
 
@@ -119,6 +120,7 @@ async def update_stripe_product(product_id: str, req: ProductReq) -> ProductRes:
         print(e)
         raise HTTPException(status_code=404, detail="Product")
     product = product.to_dict_recursive()
+    product.update(price_id=req.price_id)
     return ProductRes(**product)
 
 

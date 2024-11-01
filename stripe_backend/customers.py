@@ -10,22 +10,6 @@ import json
 from backend_common.auth import get_user_email_and_username
 from backend_common.common_sql import CommonSql
 
-{
-  "message": "Request received.",
-  "request_id": "req-2d9b1944-b532-40bd-b52d-e98c14e74275",
-  "data": {
-    "kind": "identitytoolkit#VerifyPasswordResponse",
-    "localId": "dpI5qXNkfgRBFpUn5taucoNuJUg2",
-    "email": "quodeine@hotmail.com",
-    "displayName": "testemail3",
-    "idToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImU2YWMzNTcyNzY3ZGUyNjE0ZmM1MTA4NjMzMDg3YTQ5MjMzMDNkM2IiLCJ0eXAiOiJKV1QifQ.eyJuYW1lIjoidGVzdGVtYWlsMyIsImlzcyI6Imh0dHBzOi8vc2VjdXJldG9rZW4uZ29vZ2xlLmNvbS9maXItbG9jYXRvci0zNTgzOSIsImF1ZCI6ImZpci1sb2NhdG9yLTM1ODM5IiwiYXV0aF90aW1lIjoxNzMwMjMwODUwLCJ1c2VyX2lkIjoiZHBJNXFYTmtmZ1JCRnBVbjV0YXVjb051SlVnMiIsInN1YiI6ImRwSTVxWE5rZmdSQkZwVW41dGF1Y29OdUpVZzIiLCJpYXQiOjE3MzAyMzA4NTAsImV4cCI6MTczMDIzNDQ1MCwiZW1haWwiOiJxdW9kZWluZUBob3RtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJmaXJlYmFzZSI6eyJpZGVudGl0aWVzIjp7ImVtYWlsIjpbInF1b2RlaW5lQGhvdG1haWwuY29tIl19LCJzaWduX2luX3Byb3ZpZGVyIjoicGFzc3dvcmQifX0.ZePi0o150CVa-BuzzCykjWZENL3OHrMMNgfavXDAzVd8B5evfoIkSD7BaHuDURcvCCfsSpbuDzQPQIaicFnHm_ipEEe45Km-5LtX9z2wuxjNg43ZCOlzAgwRdwsWktFKyPWr7pimKhE9-tZZvM_erUaGplxJWaFcKTqETqwOkqv7oBMlGX-nB2gv5oK1yERUXQF8HeRehbpoHcshdWhXsemzY4knzrkfrLLchORfnYzGdlicZi0j0dOWRNkMh2hY2Mr8W_dIiCgUWj2MRihtNcP5455IjqKfdShZSRIe4OthQNBuzN1Y1cthHawZ-buPchWmt7cVvXCBwiXUenfyew",
-    "registered": True,
-    "refreshToken": "AMf-vBwgh0IuRHdJ1mp17cHBsB2r57aMg-FokF5RHBiguz31uhap-UheIZJN2mxiaol7Yi26uj1CTVkaWb1Ua5GgbZ0znEWLSrXZLhYOuw5OaS8jNVaCfn-1sKZOJKVsDYebdhur90-gI38x2WvlyGKRmtU9YUrENW_LeWfVGdE65z4To1slM1E-U2ZPKu8SmkQPcNNkKlR_spZYt7O-ajJ_bucix070B2rrxjj3W1W6rGvt-8cbYhA",
-    "expiresIn": "3600",
-    "created_at": "2024-10-30T00:40:51.026697"
-  }
-}
-
 
 # customer functions
 async def create_customer(req: CustomerReq) -> CustomerRes:

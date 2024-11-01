@@ -78,17 +78,16 @@ class ProductReq(BaseModel):
     url: Optional[str] = None
     price_id: Optional[str] = None
 
+class Address(BaseModel):
+    city: Optional[str] = None
+    country: Optional[str] = None
+    line1: Optional[str] = None
+    line2: Optional[str] = None
+    postal_code: Optional[str] = None
+    state: Optional[str] = None
 
 # Customer
 class CustomerReq(BaseModel):
-    class Address(BaseModel):
-        city: Optional[str] = None
-        country: Optional[str] = None
-        line1: Optional[str] = None
-        line2: Optional[str] = None
-        postal_code: Optional[str] = None
-        state: Optional[str] = None
-
     user_id: str
     phone: str
     address: Optional[Address] = None
@@ -110,7 +109,7 @@ class CustomerReq(BaseModel):
 class CustomerRes(BaseModel):
     id: str
     object: str = "customer"
-    address: Optional[CustomerReq.Address] = None
+    address: Optional[Address] = None
     balance: Optional[int] = None
     created: int
     currency: Optional[str] = None
@@ -139,21 +138,26 @@ class SubscriptionCreateReq(BaseModel):
     payment_method_id: Optional[str] = None
 
 
+class SubscriptionUpdateReq(BaseModel):
+    seats: int
+
+
 class SubscriptionRes(BaseModel):
+    subscription: dict
     subscription_id: str
     status: str
-    seats: int
-    product_id: str
-    customer_id: str
+    seats: Optional[int] = None
+    product_id: Optional[str] = ''
+    customer_id: Optional[str] = ''
 
 class BillingDetails(BaseModel):
-    address: Optional[Dict[str, str]] = None
+    address: Optional[Address] = None
     email: Optional[str] = None
     name: Optional[str] = None
     phone: Optional[str] = None
 
 class Card(BaseModel):
-    number: str
+    number: int
     exp_month: str
     exp_year: str
     cvc: str
@@ -163,7 +167,7 @@ class Card(BaseModel):
 class PaymentMethodReq(BaseModel):
     type: str = "card"
     card: Card  # Card
-    billing_details: Optional[BillingDetails] = None
+    billing_details: Optional[BillingDetails] = {}
 
 
 
@@ -171,11 +175,11 @@ class PaymentMethodReq(BaseModel):
 class PaymentMethodRes(BaseModel):
     id: str
     type: str
-    customer_id: str
-    billing_details: Dict[str, str]
+    customer: str
+    billing_details: Optional[BillingDetails] = {}
 
 
 class PaymentMethodUpdateReq(BaseModel):
-    billing_details: Optional[Dict[str, str]]
+    billing_details: Optional[BillingDetails]
 
 
