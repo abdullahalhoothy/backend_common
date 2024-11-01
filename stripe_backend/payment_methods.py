@@ -13,7 +13,7 @@ from backend_common.stripe_backend.customers import fetch_customer
 async def create_payment_method(
     user_id: str, req: PaymentMethodReq
 ) -> PaymentMethodRes:
-    customer = await fetch_customer(user_id)
+    customer = await fetch_customer(user_id=user_id)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
@@ -54,49 +54,33 @@ async def update_payment_method(
     payment_method_id: str, req: PaymentMethodUpdateReq
 ) -> PaymentMethodRes:
     # Update the payment method in Stripe
+    billing_details = req.billing_details.dict() if req.billing_details else None
     payment_method = stripe.PaymentMethod.modify(
         payment_method_id,
-        billing_details=req.billing_details.dict() if req.billing_details else None,
+        billing_details=billing_details,
     )
-
-    # Update the record in the database (Optional)
-    query = """
-    UPDATE stripe_payment_methods
-    SET billing_details = $1
-    WHERE payment_method_id = $2
-    RETURNING *
-    """
-    payment_method_record = await Database.execute(
-        query, json.dumps(req.billing_details), payment_method_id
-    )
-
     return PaymentMethodRes(
         id=payment_method["id"],
         type=payment_method["type"],
-        customer_id=payment_method["customer"],
-        billing_details=req.billing_details,
+        customer=payment_method["customer"],
+        billing_details=billing_details,
     )
 
 
 async def delete_payment_method(payment_method_id: str) -> dict:
     # Detach the payment method from Stripe (Stripe doesn't delete but detaches it)
-    payment_method = stripe.PaymentMethod.detach(payment_method_id)
-
-    # Remove the payment method from the database (Optional)
-    query = "DELETE FROM stripe_payment_methods WHERE payment_method_id = $1"
-    await Database.execute(query, payment_method_id)
-
+    stripe.PaymentMethod.detach(payment_method_id)
     return {"message": "Payment method deleted", "payment_method_id": payment_method_id}
 
 
 async def set_default_payment_method(user_id: str, payment_method_id: str) -> dict:
-    customer = await fetch_customer(user_id)
+    customer = await fetch_customer(user_id=user_id)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
     # Update the default payment method for the customer in Stripe
     stripe.Customer.modify(
-        customer["customer_id"],
+        customer.id,
         invoice_settings={"default_payment_method": payment_method_id},
     )
 
@@ -107,24 +91,23 @@ async def set_default_payment_method(user_id: str, payment_method_id: str) -> di
 
 
 async def list_payment_methods(user_id: str) -> dict:
-    customer = await fetch_customer(user_id)
+    customer = await fetch_customer(user_id=user_id)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
     # Fetch payment methods from Stripe
     payment_methods = stripe.PaymentMethod.list(
-        customer=customer["customer_id"],
+        customer=customer.id,
         type="card",  # You can also specify other types like 'bank_account', etc.
     )
-
-    return {"payment_methods": payment_methods["data"]}
+    return payment_methods['data']
 
 
 # for testing, create the payment source
 async def testing_create_card_payment_source(
     user_id: str, source: str = "tok_visa"
 ) -> dict:
-    customer = await fetch_customer(user_id)
+    customer = await fetch_customer(user_id=user_id)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
@@ -137,7 +120,7 @@ async def testing_create_card_payment_source(
 async def attach_payment_method_to_customer(
     user_id: str, payment_method_id: str
 ) -> dict:
-    customer = await fetch_customer(user_id)
+    customer = await fetch_customer(user_id=user_id)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 

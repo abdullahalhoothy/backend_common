@@ -16,7 +16,7 @@ async def create_subscription(
     subscription_req: SubscriptionCreateReq,
 ) -> SubscriptionRes:
     # Fetch customer information
-    customer = await fetch_customer(subscription_req.user_id)
+    customer = await fetch_customer(user_id=subscription_req.user_id)
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
@@ -56,12 +56,11 @@ async def create_subscription(
         subscription.status,
     )
 
-    return {
+    return SubscriptionRes(**{
         "subscription_id": subscription.id,
         "status": subscription.status,
         "subscription": subscription,
-    }
-
+    })
 
 # Update subscription seats or alter based on business rules
 async def update_subscription(subscription_id: str, seats: int) -> dict:
@@ -82,7 +81,7 @@ async def update_subscription(subscription_id: str, seats: int) -> dict:
 
 # Cancel subscription
 async def deactivate_subscription(subscription_id: str) -> dict:
-    subscription = stripe.Subscription.retrieve(subscription_id)
+    stripe.Subscription.retrieve(subscription_id)
     stripe.Subscription.delete(subscription_id)
 
     # Optionally, mark the subscription as canceled in your database

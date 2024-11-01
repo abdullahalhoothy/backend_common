@@ -11,8 +11,9 @@ from backend_common.stripe_backend.prices import create_price
 
 # Stripe Products
 async def create_stripe_product(req: ProductReq) -> ProductRes:
+    if not req.price:
+        raise HTTPException(status_code=400, detail='Price not provided')
     metadata_json = json.dumps(req.metadata.dict(), ensure_ascii=False)
-    print(metadata_json)
     print("METADATA JSON")
     # Create a new product in Stripe
     product = stripe.Product.create(
@@ -60,12 +61,10 @@ async def create_stripe_product(req: ProductReq) -> ProductRes:
         )
     except Exception as e:
         print(e)
-        raise HTTPException(status_code=404, detail="Product")
-
+        raise HTTPException(status_code=404, detail="Unable to create product row")
     price = await create_price(req.price, ProductRes(**product_json))
 
     product_json["price_id"] = price.price_id
-
     product = await update_stripe_product(
         product_json["id"], ProductRes(**product_json)
     )
@@ -78,12 +77,17 @@ async def create_stripe_product(req: ProductReq) -> ProductRes:
 
 
 async def update_stripe_product(product_id: str, req: ProductReq) -> ProductRes:
+    query = "SELECT * FROM SubscriptionModels WHERE product_id = $1"
+    product_db = await Database.fetchrow(query, product_id)
+    if not product_db:
+        raise HTTPException(status_code=404, detail="Product not found")
+    metadata = req.metadata if isinstance(req.metadata, dict) else req.metadata.dict()
     product = stripe.Product.modify(
         product_id,
         name=req.name,
         active=req.active,
         description=req.description,
-        metadata=req.metadata,
+        metadata=metadata,
         images=req.images,
         statement_descriptor=req.statement_descriptor,
         tax_code=req.tax_code,
@@ -91,12 +95,7 @@ async def update_stripe_product(product_id: str, req: ProductReq) -> ProductRes:
         url=req.url,
         default_price=req.price_id,
     )
-
     # Update an existing product in Stripe
-    query = "SELECT * FROM SubscriptionModels WHERE product_id = $1"
-    product_db = await Database.fetchrow(query, product_id)
-    if not product_db:
-        raise HTTPException(status_code=404, detail="Product not found")
 
     try:
         query = "UPDATE SubscriptionModels SET name = $1, active = $2, description = $3, images = $4, livemode = $5, metadata = $6, package_dimensions = $7, shippable = $8, statement_descriptor = $9, tax_code = $10, unit_label = $11, url = $12 WHERE product_id = $13 RETURNING *"
@@ -108,7 +107,7 @@ async def update_stripe_product(product_id: str, req: ProductReq) -> ProductRes:
             req.description,
             req.images,
             product["livemode"],
-            json.dumps(req.metadata),
+            json.dumps(metadata, ensure_ascii=False),
             None,
             req.shippable,
             req.statement_descriptor,
@@ -120,13 +119,14 @@ async def update_stripe_product(product_id: str, req: ProductReq) -> ProductRes:
     except Exception as e:
         print(e)
         raise HTTPException(status_code=404, detail="Product")
-
-    return ProductRes(**(dict(product)))
+    product = product.to_dict_recursive()
+    product.update(price_id=req.price_id)
+    return ProductRes(**product)
 
 
 async def delete_stripe_product(product_id: str) -> str:
     # Delete an existing product in Stripe
-    response = stripe.Product.delete(product_id)
+    response = stripe.Product.modify(product_id, active=False)
     try:
         sql = "DELETE FROM SubscriptionModels WHERE product_id = $1"
         await Database.execute(sql, product_id)

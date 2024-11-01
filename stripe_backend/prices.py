@@ -6,6 +6,7 @@ from backend_common.database import Database
 
 # Create a new price
 async def create_price(price_req: PriceReq, product_req: ProductReq) -> PriceRes:
+    print(type(price_req))
     if price_req.pricing_type == "flat":
         stripe_price = stripe.Price.create(
             product=product_req.id,
@@ -214,6 +215,6 @@ async def calculate_seat_based_pricing(product: ProductRes, seats: int) -> str:
             ],
         )
     else:
-        price = product.default_price
+        price = product.price_id
 
     return price.id
