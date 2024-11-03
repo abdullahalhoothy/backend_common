@@ -46,14 +46,12 @@ async def create_subscription(
     )
 
     # Store subscription details in your database (Optional)
-    query = "INSERT INTO stripe_subscriptions (subscription_id, user_id, product_id, seats, status) VALUES ($1, $2, $3, $4, $5)"
+    query = "INSERT INTO stripe_subscriptions (subscription_id, user_id, product_id) VALUES ($1, $2, $3)"
     await Database.execute(
         query,
         subscription.id,
         subscription_req.user_id,
         subscription_req.product_id,
-        subscription_req.seats,
-        subscription.status,
     )
 
     return SubscriptionRes(**{
@@ -72,20 +70,16 @@ async def update_subscription(subscription_id: str, seats: int) -> dict:
         items=[{"id": subscription["items"]["data"][0].id, "quantity": seats}],
     )
 
-    # Optionally, update your database as well
-    query = "UPDATE stripe_subscriptions SET seats = $1 WHERE subscription_id = $2"
-    await Database.execute(query, seats, subscription_id)
-
     return {"subscription_id": subscription_id, "status": updated_subscription.status}
 
 
 # Cancel subscription
 async def deactivate_subscription(subscription_id: str) -> dict:
     stripe.Subscription.retrieve(subscription_id)
-    stripe.Subscription.delete(subscription_id)
+    stripe.Subscription.cancel(subscription_id)
 
     # Optionally, mark the subscription as canceled in your database
-    query = "UPDATE stripe_subscriptions SET status = $1 WHERE subscription_id = $2"
-    await Database.execute(query, "canceled", subscription_id)
+    query = "DROP TABLE stripe_subscriptions WHERE subscription_id = $1"
+    await Database.execute(query,subscription_id)
 
     return {"message": "Subscription canceled", "subscription_id": subscription_id}

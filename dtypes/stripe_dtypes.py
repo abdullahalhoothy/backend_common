@@ -64,9 +64,7 @@ class ProductReq(BaseModel):
     name: str
     price: Optional[PriceReq]
     active: Optional[bool] = None
-    attributes: List[str] = []
     caption: Optional[str] = None
-    deactivate_on: Optional[List[str]] = []
     description: Optional[str] = None
     images: Optional[List[str]] = []
     metadata: Metadata = Metadata()
@@ -77,6 +75,7 @@ class ProductReq(BaseModel):
     unit_label: Optional[str] = None
     url: Optional[str] = None
     price_id: Optional[str] = None
+    id: Optional[str] = None
 
 class Address(BaseModel):
     city: Optional[str] = None
