@@ -32,6 +32,7 @@ async def create_customer(req: CustomerReq) -> CustomerRes:
         phone=req.phone,
         address=req.address.model_dump(),
         metadata=req.metadata,
+        balance=req.balance,
     )
 
     # Save the customer in the database

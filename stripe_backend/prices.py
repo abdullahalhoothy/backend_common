@@ -6,7 +6,6 @@ from backend_common.database import Database
 
 # Create a new price
 async def create_price(price_req: PriceReq, product_req: ProductReq) -> PriceRes:
-    print(type(price_req))
     if price_req.pricing_type == "flat":
         stripe_price = stripe.Price.create(
             product=product_req.id,
@@ -42,8 +41,8 @@ async def create_price(price_req: PriceReq, product_req: ProductReq) -> PriceRes
 
     query = """
     INSERT INTO prices (
-        price_id, product_id, currency, unit_amount, base_amount, included_seats, additional_seat_price, recurring_interval, recurring_interval_count, created_at, updated_at, pricing_type
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *
+        price_id, product_id
+    ) VALUES ($1, $2) RETURNING *
     """
     created_at = datetime.now()
     updated_at = created_at
@@ -52,16 +51,6 @@ async def create_price(price_req: PriceReq, product_req: ProductReq) -> PriceRes
         query,
         stripe_price.id,
         product_req.id,
-        price_req.currency,
-        price_req.unit_amount,
-        price_req.base_amount,
-        price_req.included_seats,
-        price_req.additional_seat_price,
-        price_req.recurring_interval,
-        price_req.recurring_interval_count,
-        created_at,
-        updated_at,
-        price_req.pricing_type,
     )
     stripe_price_json = dict(stripe_price)
     stripe_price_json["product_id"] = product_req.id
