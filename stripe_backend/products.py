@@ -52,7 +52,7 @@ async def create_stripe_product(req: ProductReq) -> ProductRes:
 
 
 async def update_stripe_product(product_id: str, req: ProductReq) -> ProductRes:
-    query = "SELECT * FROM Product WHERE product_id = $1"
+    query = "SELECT * FROM Stripe_Products WHERE product_id = $1"
     product_db = await Database.fetchrow(query, product_id)
     if not product_db:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -79,7 +79,7 @@ async def delete_stripe_product(product_id: str) -> str:
     # Delete an existing product in Stripe
     response = stripe.Product.modify(product_id, active=False)
     try:
-        sql = "DELETE FROM Product WHERE product_id = $1"
+        sql = "DELETE FROM Stripe_Products WHERE product_id = $1"
         await Database.execute(sql, product_id)
     except Exception as e:
         print(e)
