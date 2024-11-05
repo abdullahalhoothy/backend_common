@@ -11,7 +11,8 @@ from backend_common.stripe_backend.payment_methods import (
     delete_payment_method,
     set_default_payment_method,
     list_payment_methods,
-    testing_create_card_payment_source
+    testing_create_card_payment_source,
+    attach_payment_method
 )
 from backend_common.stripe_backend.subscriptions import (
     create_subscription,

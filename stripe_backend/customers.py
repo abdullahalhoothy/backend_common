@@ -12,7 +12,7 @@ from backend_common.common_sql import CommonSql
 
 
 # customer functions
-async def create_customer(req: CustomerReq) -> CustomerRes:
+async def create_customer(req: CustomerReq) -> dict:
     # using user_id get from firebase user_email, user_name
 
     row = await Database.fetchrow(
@@ -44,21 +44,20 @@ async def create_customer(req: CustomerReq) -> CustomerRes:
     customer_json = dict(customer)
     customer_json["user_id"] = req.user_id
 
-    return  CustomerRes(**customer_json)
+    return  customer_json
 
 
-async def fetch_customer(req=None, user_id=None) -> CustomerRes:
+async def fetch_customer(req=None, user_id=None) -> dict:
     user_id = user_id or req.user_id
     customer_id = await fetch_customer_id(user_id)
 
     customer = stripe.Customer.retrieve(customer_id)
 
     customer_json = dict(customer)
+    return customer_json
 
-    return CustomerRes(**customer_json)
 
-
-async def update_customer(req: CustomerReq) -> CustomerRes:
+async def update_customer(req: CustomerReq) -> dict:
 
     row = await Database.fetchrow(
         CommonSql.fetch_customer_id_by_user_id__stripe_query,req.user_id
@@ -79,22 +78,22 @@ async def update_customer(req: CustomerReq) -> CustomerRes:
     return customer_json
 
 
-async def delete_customer(req) -> str:
+async def delete_customer(req) -> dict:
     user_id = req.user_id
 
     customer_id = await fetch_customer_id(user_id)
 
-    stripe.Customer.delete(customer_id)
+    customer = stripe.Customer.delete(customer_id)
 
     await Database.execute(CommonSql.delete_customer_strip_query, customer_id)
 
-    return "Customer deleted"
+    return customer.to_dict_recursive()
 
 
-async def list_customers() -> list[CustomerRes]:
+async def list_customers() -> list[dict]:
     all_customers = stripe.Customer.list()
+    return [customer for customer in all_customers["data"]]
 
-    return [CustomerRes(**customer) for customer in all_customers["data"]]
 
 async def fetch_customer_id(user_id:str):
     customer_record = await Database.fetchrow(CommonSql.fetch_customer_id_by_user_id__stripe_query, user_id)

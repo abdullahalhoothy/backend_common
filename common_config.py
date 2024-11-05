@@ -60,6 +60,7 @@ class CommonApiConfig:
     create_stripe_payment_method: str = backend_base_uri + "create_stripe_payment_method"
     update_stripe_payment_method: str = backend_base_uri + "update_stripe_payment_method"
     detach_stripe_payment_method: str = backend_base_uri + "detach_stripe_payment_method"
+    attach_stripe_payment_method: str = backend_base_uri + "attach_stripe_payment_method"
     set_default_stripe_payment_method: str = backend_base_uri + "set_default_stripe_payment_method"
     list_stripe_payment_methods: str = backend_base_uri + "list_stripe_payment_methods"
     testing_create_card_payment_source: str = backend_base_uri + "testing_create_card_payment_source"

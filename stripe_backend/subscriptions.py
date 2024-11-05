@@ -14,7 +14,7 @@ from backend_common.stripe_backend.prices import calculate_seat_based_pricing
 # Subscription for individual or team
 async def create_subscription(
     subscription_req: SubscriptionCreateReq,
-) -> SubscriptionRes:
+) -> dict:
     # Fetch customer information
     customer = await fetch_customer(user_id=subscription_req.user_id)
     if not customer:
@@ -34,7 +34,7 @@ async def create_subscription(
     print("PRICE ID", price_id)
     # Create the subscription
     subscription = stripe.Subscription.create(
-        customer=customer.id,
+        customer=customer['id'],
         items=[
             {
                 "price": price_id,
@@ -54,11 +54,8 @@ async def create_subscription(
         subscription_req.product_id,
     )
 
-    return SubscriptionRes(**{
-        "subscription_id": subscription.id,
-        "status": subscription.status,
-        "subscription": subscription,
-    })
+    return subscription.to_dict_recursive()
+
 
 # Update subscription seats or alter based on business rules
 async def update_subscription(subscription_id: str, seats: int) -> dict:
@@ -70,16 +67,16 @@ async def update_subscription(subscription_id: str, seats: int) -> dict:
         items=[{"id": subscription["items"]["data"][0].id, "quantity": seats}],
     )
 
-    return {"subscription_id": subscription_id, "status": updated_subscription.status}
+    return updated_subscription.to_dict_recursive()
 
 
 # Cancel subscription
 async def deactivate_subscription(subscription_id: str) -> dict:
     stripe.Subscription.retrieve(subscription_id)
-    stripe.Subscription.cancel(subscription_id)
+    canceled_subscription = stripe.Subscription.cancel(subscription_id)
 
     # Optionally, mark the subscription as canceled in your database
     query = "DROP TABLE stripe_subscriptions WHERE subscription_id = $1"
     await Database.execute(query,subscription_id)
 
-    return {"message": "Subscription canceled", "subscription_id": subscription_id}
+    return canceled_subscription.to_dict_recursive()
