@@ -51,7 +51,7 @@ async def create_stripe_product(req: ProductReq) -> dict:
     return product
 
 
-async def update_stripe_product(product_id: str, req: ProductReq) -> dict:
+async def update_stripe_product(product_id: str, req: ProductReq) -> ProductRes:
     query = "SELECT * FROM Stripe_Products WHERE product_id = $1"
     product_db = await Database.fetchrow(query, product_id)
     if not product_db:
