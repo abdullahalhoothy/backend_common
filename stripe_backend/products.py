@@ -32,7 +32,7 @@ async def create_stripe_product(req: ProductReq) -> dict:
     # change the attributes inside the product to a dict
     product_json = dict(product)
     try:
-        query = f"INSERT INTO Product (product_id) VALUES ('{product.id}') RETURNING *"
+        query = f"INSERT INTO Stripe_Products (product_id) VALUES ('{product.id}') RETURNING *"
         await Database.execute(query)
     except Exception as e:
         print(e)
