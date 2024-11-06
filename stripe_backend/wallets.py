@@ -13,7 +13,7 @@ async def charge_wallet(user_id: str, amount: int) -> dict:
     # Add funds to the customer's balance in Stripe
     # The amount should be in cents (for example, $10 = 1000)
     adjustment = stripe.Customer.create_balance_transaction(
-        customer.id,
+        customer['id'],
         amount=amount,  # Positive amount to increase balance
         currency="usd",
         description=(
@@ -21,10 +21,7 @@ async def charge_wallet(user_id: str, amount: int) -> dict:
         ),
     )
 
-    return {
-        "message": "Wallet charged" if int(amount) > 0 else "Wallet deducted",
-        "balance_transaction": adjustment,
-    }
+    return  adjustment.to_dict_recursive()
 
 
 async def fetch_wallet(user_id: str) -> dict:
@@ -34,10 +31,10 @@ async def fetch_wallet(user_id: str) -> dict:
         raise HTTPException(status_code=404, detail="Customer not found")
 
     # Get the customer's current balance in Stripe
-    balance = customer.balance
+    balance = customer['balance']
 
     return {
-        "customer_id": customer.id,
+        "customer_id": customer['id'],
         "balance": balance / 100.0,  # Stripe returns balance in cents
         "currency": "usd",
     }

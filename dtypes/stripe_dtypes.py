@@ -182,3 +182,8 @@ class PaymentMethodUpdateReq(BaseModel):
     billing_details: Optional[BillingDetails]
 
 
+class PaymentMethodAttachReq(BaseModel):
+    user_id: str
+    payment_method_id: str
+
+

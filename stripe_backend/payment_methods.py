@@ -52,25 +52,28 @@ async def create_payment_method(
 
 async def update_payment_method(
     payment_method_id: str, req: PaymentMethodUpdateReq
-) -> PaymentMethodRes:
+) -> dict:
     # Update the payment method in Stripe
     billing_details = req.billing_details.dict() if req.billing_details else None
     payment_method = stripe.PaymentMethod.modify(
         payment_method_id,
         billing_details=billing_details,
     )
-    return PaymentMethodRes(
-        id=payment_method["id"],
-        type=payment_method["type"],
-        customer=payment_method["customer"],
-        billing_details=billing_details,
-    )
+    return payment_method.to_dict_recursive()
+
+
+async def attach_payment_method(user_id: str, payment_method_id: str) -> dict:
+    # Detach the payment method from Stripe (Stripe doesn't delete but detaches it)
+    customer = await fetch_customer(user_id=user_id)
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    return stripe.PaymentMethod.attach(payment_method_id, customer=customer['id']).to_dict_recursive()
 
 
 async def delete_payment_method(payment_method_id: str) -> dict:
     # Detach the payment method from Stripe (Stripe doesn't delete but detaches it)
-    stripe.PaymentMethod.detach(payment_method_id)
-    return {"message": "Payment method deleted", "payment_method_id": payment_method_id}
+    return stripe.PaymentMethod.detach(payment_method_id).to_dict_recursive()
 
 
 async def set_default_payment_method(user_id: str, payment_method_id: str) -> dict:
@@ -79,15 +82,10 @@ async def set_default_payment_method(user_id: str, payment_method_id: str) -> di
         raise HTTPException(status_code=404, detail="Customer not found")
 
     # Update the default payment method for the customer in Stripe
-    stripe.Customer.modify(
-        customer.id,
+    return stripe.Customer.modify(
+        customer['id'],
         invoice_settings={"default_payment_method": payment_method_id},
-    )
-
-    return {
-        "message": "Default payment method set",
-        "payment_method_id": payment_method_id,
-    }
+    ).to_dict_recursive()
 
 
 async def list_payment_methods(user_id: str) -> dict:
@@ -97,10 +95,10 @@ async def list_payment_methods(user_id: str) -> dict:
 
     # Fetch payment methods from Stripe
     payment_methods = stripe.PaymentMethod.list(
-        customer=customer.id,
+        customer=customer['id'],
         type="card",  # You can also specify other types like 'bank_account', etc.
     )
-    return payment_methods['data']
+    return payment_methods.to_dict_recursive()['data']
 
 
 # for testing, create the payment source
@@ -112,7 +110,7 @@ async def testing_create_card_payment_source(
         raise HTTPException(status_code=404, detail="Customer not found")
 
     # Create a payment method in Stripe
-    payment_method = stripe.Customer.create_source(customer.id, source=str(source))
+    payment_method = stripe.Customer.create_source(customer['id'], source=str(source))
 
     return {"message": "Payment method created"}
 

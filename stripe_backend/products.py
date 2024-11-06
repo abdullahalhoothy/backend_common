@@ -10,7 +10,7 @@ from backend_common.stripe_backend.prices import create_price
 
 
 # Stripe Products
-async def create_stripe_product(req: ProductReq) -> ProductRes:
+async def create_stripe_product(req: ProductReq) -> dict:
     if not req.price:
         raise HTTPException(status_code=400, detail='Price not provided')
     metadata_json = json.dumps(req.metadata.dict(), ensure_ascii=False)
@@ -72,10 +72,10 @@ async def update_stripe_product(product_id: str, req: ProductReq) -> ProductRes:
     )
     product = product.to_dict_recursive()
     product.update(price_id=req.price_id)
-    return ProductRes(**product)
+    return product
 
 
-async def delete_stripe_product(product_id: str) -> str:
+async def delete_stripe_product(product_id: str) -> dict:
     # Delete an existing product in Stripe
     response = stripe.Product.modify(product_id, active=False)
     try:
@@ -84,17 +84,14 @@ async def delete_stripe_product(product_id: str) -> str:
     except Exception as e:
         print(e)
         raise HTTPException(status_code=404, detail="Product")
-    return f"Product {product_id} deleted"
+    return response.to_dict_recursive()
 
 
-async def list_stripe_products() -> list[ProductRes]:
+async def list_stripe_products() -> list[dict]:
     # List all products in Stripe
-    products =  list(stripe.Product.list(limit=1_000).get('data', []))
+    products =  stripe.Product.list(limit=1_000).to_dict_recursive()
     # Ensure data types and add missing fields
-    formatted_products = []
-    for product in products:
-        formatted_products.append(ProductRes(**product))
-    return formatted_products
+    return products['data']
 
 
 async def fetch_stripe_product(product_id: str) -> ProductRes:
