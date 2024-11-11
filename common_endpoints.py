@@ -1,9 +1,17 @@
 from fastapi import Body, HTTPException, status, FastAPI, Request, Depends
 from backend_common.auth import JWTBearer
-from dtypes.auth_dtypes import (ReqCreateUserProfile, ReqChangeEmail, ReqResetPassword, 
-                                ReqConfirmReset, ReqChangePassword, ReqRefreshToken, 
-                                ReqChangeEmail, ReqUserId,ReqUserLogin,ReqUserProfile,
-                                ReqUserProfile)
+from backend_common.dtypes.auth_dtypes import (
+    ReqCreateUserProfile,
+    ReqChangeEmail,
+    ReqResetPassword,
+    ReqConfirmReset,
+    ReqChangePassword,
+    ReqRefreshToken,
+    ReqUserId,
+    ReqUserLogin,
+    ReqUserProfile,
+    ReqUserProfile,
+)
 from backend_common.request_processor import request_handling
 from typing import Dict, List, TypeVar, Generic, Literal, Any, Optional, Union
 from backend_common.auth import (
@@ -20,25 +28,26 @@ from backend_common.auth import (
 app = FastAPI()
 
 
-@app.get('/index', dependencies=[Depends(JWTBearer())])
+@app.get("/index", dependencies=[Depends(JWTBearer())])
 # this needs to use request_handling
 def index():
-    return {'message': 'Hello World'}
+    return {"message": "Hello World"}
 
 
 @app.post("/create_firebase_user", response_model=Dict[str, str])
 async def create_user_profile_endpoint(req: ReqCreateUserProfile):
     response = await request_handling(
-        req, ReqCreateUserProfile, Dict[str, str], create_user,
-        wrap_output=True
+        req, ReqCreateUserProfile, dict[str, str], create_user
     )
     return response
+
 
 @app.post("/login", response_model=Dict[str, str])
 async def login(req: ReqUserLogin):
     # if CONF.firebase_api_key != "":
-    response = await request_handling(req, ReqUserLogin, Dict[str, str], login_user,
-    wrap_output=True)
+    response = await request_handling(
+        req, ReqUserLogin, dict[str, str], login_user
+    )
     # else:
     #     response = {
     #         "message": "Request received",
@@ -63,7 +72,7 @@ async def refresh_token(req: ReqRefreshToken):
     try:
         # if CONF.firebase_api_key != "":
         response = await request_handling(
-            req, ReqRefreshToken, Dict[str, str], refresh_id_token, wrap_output=True
+            req, ReqRefreshToken, dict[str, str], refresh_id_token
         )
         # else:
         #     response = {
@@ -85,35 +94,40 @@ async def refresh_token(req: ReqRefreshToken):
     except Exception as e:
         raise HTTPException(status_code=400, detail="Token refresh failed")
 
+
 @app.post("/reset_password", response_model=Dict[str, Any])
 async def reset_password_endpoint(req: ReqResetPassword):
     response = await request_handling(
-        req, ReqResetPassword, Dict[str, Any], reset_password,
-        wrap_output=True
+        req, ReqResetPassword, dict[str, Any], reset_password
     )
     return response
 
 
 @app.post("/confirm_reset", response_model=Dict[str, Any])
 async def confirm_reset_endpoint(req: ReqConfirmReset):
-    response = await request_handling(req, ReqConfirmReset, Dict[str, Any], confirm_reset,
-                                      wrap_output=True)
-    return response
-
-
-@app.post("/change_password", response_model=Dict[str, Any], dependencies=[Depends(JWTBearer())])
-async def change_password_endpoint(req: ReqChangePassword, request: Request):
     response = await request_handling(
-        req, ReqChangePassword, Dict[str, Any], change_password,
-        wrap_output=True
+        req, ReqConfirmReset, dict[str, Any], confirm_reset
     )
     return response
 
 
-@app.post("/change_email", response_model=Dict[str, Any], dependencies=[Depends(JWTBearer())])
+@app.post(
+    "/change_password",
+    response_model=Dict[str, Any],
+    dependencies=[Depends(JWTBearer())],
+)
+async def change_password_endpoint(req: ReqChangePassword, request: Request):
+    response = await request_handling(
+        req, ReqChangePassword, dict[str, Any], change_password
+    )
+    return response
+
+
+@app.post(
+    "/change_email", response_model=Dict[str, Any], dependencies=[Depends(JWTBearer())]
+)
 async def change_email_endpoint(req: ReqChangeEmail, request: Request):
     response = await request_handling(
-        req, ReqChangeEmail, Dict[str, Any], change_email,
-        wrap_output=True
+        req, ReqChangeEmail, dict[str, Any], change_email
     )
     return response

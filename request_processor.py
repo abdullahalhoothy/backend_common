@@ -25,12 +25,12 @@ async def request_handling(
     wrap_output: bool = False
 ):
     if req:
-        input_type.model_validate(req.request_body)
+        input_type.model_validate(req)
 
     if custom_function is not None:
         try:
             if req:
-                output = await custom_function(req=req.request_body)
+                output = await custom_function(req=req)
             else:
                 output = await custom_function()
         except HTTPException:
