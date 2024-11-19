@@ -15,7 +15,7 @@ from backend_common.dtypes.auth_dtypes import (
 from backend_common.request_processor import request_handling
 from typing import Dict, List, TypeVar, Generic, Literal, Any, Optional, Union
 from backend_common.auth import (
-    create_user,
+    create_firebase_user,
     login_user,
     my_verify_id_token,
     reset_password,
@@ -24,6 +24,7 @@ from backend_common.auth import (
     refresh_id_token,
     change_email,
 )
+from backend_common.stripe_backend.customers import create_stripe_customer
 
 app = FastAPI()
 
@@ -34,11 +35,16 @@ def index():
     return {"message": "Hello World"}
 
 
-@app.post("/create_firebase_user", response_model=Dict[str, str])
+@app.post("/create_firebase_stripe_user", response_model=list[Dict[str, str]])
 async def create_user_profile_endpoint(req: ReqCreateUserProfile):
-    response = await request_handling(
-        req, ReqCreateUserProfile, dict[str, str], create_user
+
+    response_1 = await request_handling(
+        req, ReqCreateUserProfile, dict[str, str], create_firebase_user
     )
+    response_2 = await request_handling(
+        response_1, ReqCreateUserProfile, dict[str, str], create_stripe_customer
+    )
+    response = [response_1, response_2]
     return response
 
 

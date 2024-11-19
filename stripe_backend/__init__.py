@@ -1,9 +1,8 @@
 from backend_common.stripe_backend.customers import (
-    create_customer,
+    create_stripe_customer,
     fetch_customer,
     update_customer,
     list_customers,
-    delete_customer,
 )
 from backend_common.stripe_backend.payment_methods import (
     create_payment_method,

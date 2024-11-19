@@ -17,7 +17,6 @@ class CommonApiConfig:
     firebase_signInWithCustomToken = f"{firebase_base_url}signInWithCustomToken?key="
     firebase_update = f"{firebase_base_url}update?key="
     enable_CORS_url: str = "http://localhost:3000"
-    create_user_profile: str = backend_base_uri + "create_user_profile"
     reset_password: str = backend_base_uri + "reset-password"
     confirm_reset: str = backend_base_uri + "confirm-reset"
     change_password: str = backend_base_uri + "change-password"

@@ -14,7 +14,7 @@ from backend_common.dtypes.auth_dtypes import (
     ReqChangeEmail,
 )
 from backend_common.common_config import CONF
-
+from firebase_admin import firestore
 import requests
 import os
 from firebase_admin import auth
@@ -26,10 +26,11 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
+
 if os.path.exists(CONF.firebase_sp_path):
     cred = credentials.Certificate(CONF.firebase_sp_path)
     default_app = firebase_admin.initialize_app(cred)
-
+    db = firestore.client()
 
 class JWTBearer(HTTPBearer):
     """This class is to make endpoints secure with JWT"""
@@ -68,7 +69,7 @@ class JWTBearer(HTTPBearer):
         return True
 
 
-async def create_user(req: ReqCreateUserProfile) -> Dict[str, str]:
+async def create_firebase_user(req: ReqCreateUserProfile) -> Dict[str, str]:
     try:
         # Create user in Firebase
         user = auth.create_user(
@@ -242,3 +243,22 @@ async def get_user_email_and_username(user_id: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred: {str(e)}",
         )
+
+
+# Helper functions for Firestore operations
+async def save_customer_mapping(firebase_uid: str, stripe_customer_id: str):
+    doc_ref = db.collection('firebase_stripe_mappings').document(firebase_uid)
+    doc_ref.set({
+        'stripe_customer_id': stripe_customer_id,
+        'created_at': firestore.SERVER_TIMESTAMP
+    })
+
+async def get_stripe_customer_id(firebase_uid: str) -> str:
+    doc_ref = db.collection('firebase_stripe_mappings').document(firebase_uid)
+    doc = doc_ref.get()
+    if not doc.exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Stripe customer not found for this user"
+        )
+    return doc.to_dict().get('stripe_customer_id')
