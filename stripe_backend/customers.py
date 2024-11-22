@@ -12,28 +12,29 @@ from backend_common.auth import get_user_email_and_username,get_stripe_customer_
 
 
 # customer functions
-async def create_stripe_customer(req: CustomerReq) -> dict:
+async def create_stripe_customer(req: str) -> dict:
+    user_id = req
     # Check if customer mapping already exists
-    email, username = await get_user_email_and_username(req.user_id)
+    email, username = await get_user_email_and_username(user_id)
 
     # Create a new customer in Stripe
-    req.metadata.update({'user_id': req.user_id})
+    metadata_dict = {'user_id': user_id}
     
     customer = stripe.Customer.create(
-        name=req.name or username,
+        name=username,
         email=email,
-        description=req.description,
-        phone=req.phone,
-        address=req.address.model_dump(),
-        metadata=req.metadata,
-        balance=req.balance,
+        description="",
+        phone="",
+        address="",
+        metadata=metadata_dict,
+        balance=0,
     )
 
     # Save the mapping in Firestore
-    await save_customer_mapping(req.user_id, customer.id)
+    await save_customer_mapping(user_id, customer.id)
 
     customer_json = dict(customer)
-    customer_json["user_id"] = req.user_id
+    customer_json["user_id"] = user_id
 
     return  customer_json
 

@@ -24,7 +24,7 @@ async def request_handling(
     output: Optional[T] = "",
     wrap_output: bool = False
 ):
-    if req:
+    if req and input_type:
         input_type.model_validate(req)
 
     if custom_function is not None:
