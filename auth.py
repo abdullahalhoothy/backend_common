@@ -21,10 +21,10 @@ from firebase_admin import auth
 import firebase_admin
 from firebase_admin import credentials
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
+import stripe
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
+stripe.api_key = CONF.stripe_api_key
 
 
 if os.path.exists(CONF.firebase_sp_path):

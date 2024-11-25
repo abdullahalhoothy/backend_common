@@ -35,14 +35,14 @@ def index():
     return {"message": "Hello World"}
 
 
-@app.post("/create_firebase_stripe_user", response_model=list[Dict[str, str]])
+@app.post("/create_firebase_stripe_user", response_model=list[Dict[Any, Any]])
 async def create_user_profile_endpoint(req: ReqCreateUserProfile):
 
     response_1 = await request_handling(
         req, ReqCreateUserProfile, dict[str, str], create_firebase_user
     )
     response_2 = await request_handling(
-        response_1, ReqCreateUserProfile, dict[str, str], create_stripe_customer
+        response_1["user_id"], None, dict[str, str], create_stripe_customer
     )
     response = [response_1, response_2]
     return response
