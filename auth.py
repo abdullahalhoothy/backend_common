@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Any
 
 from fastapi import Depends, HTTPException, status, Request
 
@@ -69,7 +69,7 @@ class JWTBearer(HTTPBearer):
         return True
 
 
-async def create_firebase_user(req: ReqCreateUserProfile) -> Dict[str, str]:
+async def create_firebase_user(req: ReqCreateUserProfile) -> Dict[str, Any]:
     try:
         # Create user in Firebase
         user = auth.create_user(
@@ -97,7 +97,7 @@ async def create_firebase_user(req: ReqCreateUserProfile) -> Dict[str, str]:
         ) from emialerrror
 
 
-async def login_user(req: ReqUserLogin) -> Dict[str, str]:
+async def login_user(req: ReqUserLogin) -> Dict[str, Any]:
     try:
         payload = {
             "email": req.email,
@@ -124,7 +124,7 @@ async def login_user(req: ReqUserLogin) -> Dict[str, str]:
         ) from e
 
 
-async def refresh_id_token(req: ReqRefreshToken) -> Dict[str, str]:
+async def refresh_id_token(req: ReqRefreshToken) -> Dict[str, Any]:
     try:
         payload = {"grant_type": req.grant_type, "refresh_token": req.refresh_token}
         response = await make_firebase_api_request(CONF.firebase_refresh_token, payload)
@@ -163,19 +163,19 @@ def my_verify_id_token(token: str = Depends(oauth2_scheme)):
         ) from e
 
 
-async def reset_password(req: ReqResetPassword) -> Dict[str, str]:
+async def reset_password(req: ReqResetPassword) -> Dict[str, Any]:
     payload = {"requestType": "PASSWORD_RESET", "email": req.email}
     response = await make_firebase_api_request(CONF.firebase_sendOobCode, payload)
     return response
 
 
-async def confirm_reset(req: ReqConfirmReset) -> Dict[str, str]:
+async def confirm_reset(req: ReqConfirmReset) -> Dict[str, Any]:
     payload = {"oobCode": req.oob_code, "newPassword": req.new_password}
     response = await make_firebase_api_request(CONF.firebase_resetPassword, payload)
     return response
 
 
-async def change_password(req: ReqChangePassword) -> Dict[str, str]:
+async def change_password(req: ReqChangePassword) -> Dict[str, Any]:
     login_req = ReqUserLogin(email=req.email, password=req.password)
     response = await login_user(login_req)
     if response.get("localId", "") != req.user_id:
@@ -195,7 +195,7 @@ async def change_password(req: ReqChangePassword) -> Dict[str, str]:
     return response
 
 
-async def change_email(req: ReqChangeEmail) -> Dict[str, str]:
+async def change_email(req: ReqChangeEmail) -> Dict[str, Any]:
     login_req = ReqUserLogin(email=req.current_email, password=req.password)
     response = await login_user(login_req)
     if response.get("localId", "") != req.user_id:

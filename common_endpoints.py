@@ -39,20 +39,20 @@ def index():
 async def create_user_profile_endpoint(req: ReqCreateUserProfile):
 
     response_1 = await request_handling(
-        req, ReqCreateUserProfile, dict[str, str], create_firebase_user
+        req, ReqCreateUserProfile, dict[Any, Any], create_firebase_user
     )
     response_2 = await request_handling(
-        response_1["user_id"], None, dict[str, str], create_stripe_customer
+        response_1["user_id"], None, dict[Any, Any], create_stripe_customer
     )
     response = [response_1, response_2]
     return response
 
 
-@app.post("/login", response_model=Dict[str, str])
+@app.post("/login", response_model=dict[Any, Any])
 async def login(req: ReqUserLogin):
     # if CONF.firebase_api_key != "":
     response = await request_handling(
-        req, ReqUserLogin, dict[str, str], login_user
+        req, ReqUserLogin, dict[Any, Any], login_user
     )
     # else:
     #     response = {
@@ -73,12 +73,12 @@ async def login(req: ReqUserLogin):
     return response
 
 
-@app.post("/refresh_token", response_model=Dict[str, str])
+@app.post("/refresh_token", response_model=dict[Any, Any])
 async def refresh_token(req: ReqRefreshToken):
     try:
         # if CONF.firebase_api_key != "":
         response = await request_handling(
-            req, ReqRefreshToken, dict[str, str], refresh_id_token
+            req, ReqRefreshToken, dict[Any, Any], refresh_id_token
         )
         # else:
         #     response = {
