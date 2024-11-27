@@ -7,10 +7,14 @@ class ReqUserId(BaseModel):
     user_id: str
 
 
-class ReqCreateUserProfile(BaseModel):
+class ReqCreateFirebaseUser(BaseModel):
     username: str
     email: str
     password: str
+
+
+class ReqCreateUserProfile(ReqCreateFirebaseUser):
+    user_id: str
 
 
 class ReqUserLogin(BaseModel):

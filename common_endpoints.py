@@ -1,7 +1,7 @@
 from fastapi import Body, HTTPException, status, FastAPI, Request, Depends
 from backend_common.auth import JWTBearer
 from backend_common.dtypes.auth_dtypes import (
-    ReqCreateUserProfile,
+    ReqCreateFirebaseUser,
     ReqChangeEmail,
     ReqResetPassword,
     ReqConfirmReset,
@@ -36,10 +36,10 @@ def index():
 
 
 @app.post("/create_firebase_stripe_user", response_model=list[Dict[Any, Any]])
-async def create_user_profile_endpoint(req: ReqCreateUserProfile):
+async def create_user_profile_endpoint(req: ReqCreateFirebaseUser):
 
     response_1 = await request_handling(
-        req, ReqCreateUserProfile, dict[Any, Any], create_firebase_user
+        req, ReqCreateFirebaseUser, dict[Any, Any], create_firebase_user
     )
     response_2 = await request_handling(
         response_1["user_id"], None, dict[Any, Any], create_stripe_customer

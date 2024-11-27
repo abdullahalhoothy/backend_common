@@ -1,17 +1,19 @@
 from datetime import datetime
-from typing import Dict, Any
-
+from typing import Any
+import json
 from fastapi import Depends, HTTPException, status, Request
 
 from fastapi.security import OAuth2PasswordBearer
+from backend_common.database import Database
 from backend_common.dtypes.auth_dtypes import (
-    ReqCreateUserProfile,
+    ReqCreateFirebaseUser,
     ReqUserLogin,
     ReqResetPassword,
     ReqConfirmReset,
     ReqChangePassword,
     ReqRefreshToken,
     ReqChangeEmail,
+    ReqCreateUserProfile,
 )
 from backend_common.common_config import CONF
 from firebase_admin import firestore
@@ -23,6 +25,8 @@ from firebase_admin import credentials
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import stripe
 
+from sql_object import SqlObject
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 stripe.api_key = CONF.stripe_api_key
 
@@ -31,6 +35,7 @@ if os.path.exists(CONF.firebase_sp_path):
     cred = credentials.Certificate(CONF.firebase_sp_path)
     default_app = firebase_admin.initialize_app(cred)
     db = firestore.client()
+
 
 class JWTBearer(HTTPBearer):
     """This class is to make endpoints secure with JWT"""
@@ -61,15 +66,12 @@ class JWTBearer(HTTPBearer):
         token_user_id = decoded_token["uid"]
         # Check if the token user_id matches the requested user_id
         request_body = await self.request.json()
-        if (
-            request_body.get("user_id")
-            and token_user_id != request_body.get("user_id")
-        ):
+        if request_body.get("user_id") and token_user_id != request_body.get("user_id"):
             return False
         return True
 
 
-async def create_firebase_user(req: ReqCreateUserProfile) -> Dict[str, Any]:
+async def create_firebase_user(req: ReqCreateFirebaseUser) -> dict[str, Any]:
     try:
         # Create user in Firebase
         user = auth.create_user(
@@ -97,7 +99,7 @@ async def create_firebase_user(req: ReqCreateUserProfile) -> Dict[str, Any]:
         ) from emialerrror
 
 
-async def login_user(req: ReqUserLogin) -> Dict[str, Any]:
+async def login_user(req: ReqUserLogin) -> dict[str, Any]:
     try:
         payload = {
             "email": req.email,
@@ -124,7 +126,7 @@ async def login_user(req: ReqUserLogin) -> Dict[str, Any]:
         ) from e
 
 
-async def refresh_id_token(req: ReqRefreshToken) -> Dict[str, Any]:
+async def refresh_id_token(req: ReqRefreshToken) -> dict[str, Any]:
     try:
         payload = {"grant_type": req.grant_type, "refresh_token": req.refresh_token}
         response = await make_firebase_api_request(CONF.firebase_refresh_token, payload)
@@ -163,19 +165,19 @@ def my_verify_id_token(token: str = Depends(oauth2_scheme)):
         ) from e
 
 
-async def reset_password(req: ReqResetPassword) -> Dict[str, Any]:
+async def reset_password(req: ReqResetPassword) -> dict[str, Any]:
     payload = {"requestType": "PASSWORD_RESET", "email": req.email}
     response = await make_firebase_api_request(CONF.firebase_sendOobCode, payload)
     return response
 
 
-async def confirm_reset(req: ReqConfirmReset) -> Dict[str, Any]:
+async def confirm_reset(req: ReqConfirmReset) -> dict[str, Any]:
     payload = {"oobCode": req.oob_code, "newPassword": req.new_password}
     response = await make_firebase_api_request(CONF.firebase_resetPassword, payload)
     return response
 
 
-async def change_password(req: ReqChangePassword) -> Dict[str, Any]:
+async def change_password(req: ReqChangePassword) -> dict[str, Any]:
     login_req = ReqUserLogin(email=req.email, password=req.password)
     response = await login_user(login_req)
     if response.get("localId", "") != req.user_id:
@@ -195,7 +197,7 @@ async def change_password(req: ReqChangePassword) -> Dict[str, Any]:
     return response
 
 
-async def change_email(req: ReqChangeEmail) -> Dict[str, Any]:
+async def change_email(req: ReqChangeEmail) -> dict[str, Any]:
     login_req = ReqUserLogin(email=req.current_email, password=req.password)
     response = await login_user(login_req)
     if response.get("localId", "") != req.user_id:
@@ -245,20 +247,115 @@ async def get_user_email_and_username(user_id: str):
         )
 
 
-# Helper functions for Firestore operations
+# firebase and stripe store customer
 async def save_customer_mapping(firebase_uid: str, stripe_customer_id: str):
-    doc_ref = db.collection('firebase_stripe_mappings').document(firebase_uid)
-    doc_ref.set({
-        'stripe_customer_id': stripe_customer_id,
-        'created_at': firestore.SERVER_TIMESTAMP
-    })
+    doc_ref = db.collection("firebase_stripe_mappings").document(firebase_uid)
+    doc_ref.set(
+        {
+            "stripe_customer_id": stripe_customer_id,
+            "created_at": firestore.SERVER_TIMESTAMP,
+        }
+    )
+
 
 async def get_stripe_customer_id(firebase_uid: str) -> str:
-    doc_ref = db.collection('firebase_stripe_mappings').document(firebase_uid)
+    doc_ref = db.collection("firebase_stripe_mappings").document(firebase_uid)
     doc = doc_ref.get()
     if not doc.exists:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Stripe customer not found for this user"
+            detail="Stripe customer not found for this user",
         )
-    return doc.to_dict().get('stripe_customer_id')
+    return doc.to_dict().get("stripe_customer_id")
+
+
+# User Profile Collection Functions
+async def create_user_profile(req: ReqCreateUserProfile):
+    user_data = {
+        "user_id": req.user_id,
+        "email": req.email,
+        "username": req.username,
+        "prdcer": {
+            "prdcer_dataset": {},
+            "prdcer_lyrs": {},
+            "prdcer_ctlgs": {},
+            "draft_ctlgs": {},
+        }
+    }
+
+    # Add timestamp separately in Firestore but don't include in return data
+    doc_ref = db.collection('all_user_profiles').document(req.user_id)
+    firestore_data = user_data.copy()
+    firestore_data['created_at'] = firestore.SERVER_TIMESTAMP
+    doc_ref.set(firestore_data)
+    
+    return user_data
+
+
+async def update_user_profile(user_id: str, user_data: dict):
+    try:
+        doc_ref = db.collection('all_user_profiles').document(user_id)
+        
+        # Prepare data for Firestore update
+        update_data = {
+            "user_id": user_data["user_id"],
+            "prdcer": {
+                "prdcer_dataset": user_data.get("prdcer", {}).get("prdcer_dataset", {}),
+                "prdcer_lyrs": user_data.get("prdcer", {}).get("prdcer_lyrs", {}),
+                "prdcer_ctlgs": user_data.get("prdcer", {}).get("prdcer_ctlgs", {}),
+                "draft_ctlgs": user_data.get("prdcer", {}).get("draft_ctlgs", {}),
+            },
+            "updated_at": firestore.SERVER_TIMESTAMP
+        }
+        
+        doc_ref.update(update_data)
+        
+        # Return data without the timestamp
+        del update_data['updated_at']
+        return update_data
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error updating user profile: {str(e)}"
+        )
+
+
+async def load_user_profile(user_id: str) -> dict:
+    """
+    Loads user data from Firestore based on the user ID.
+    If the user doesn't exist, creates an empty profile.
+    """
+    try:
+        doc_ref = db.collection('all_user_profiles').document(user_id)
+        doc = doc_ref.get()
+        
+
+        if not doc.exists:
+            # User doesn't exist, create an empty profile
+            req = ReqCreateUserProfile(
+                user_id=user_id, username="", password="", email=""
+            )
+            return await create_user_profile(req)
+            
+        data = doc.to_dict()
+        # Remove timestamp fields before returning
+        if 'created_at' in data:
+            del data['created_at']
+        if 'updated_at' in data:
+            del data['updated_at']
+            
+        return {
+            "user_id": data["user_id"],
+            "prdcer": {
+                "prdcer_dataset": data["prdcer"]["prdcer_dataset"],
+                "prdcer_lyrs": data["prdcer"]["prdcer_lyrs"],
+                "prdcer_ctlgs": data["prdcer"]["prdcer_ctlgs"],
+                "draft_ctlgs": data["prdcer"]["draft_ctlgs"],
+            }
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error loading user profile: {str(e)}"
+        )
