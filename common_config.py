@@ -1,6 +1,6 @@
 import json
 import os
-from dataclasses import dataclass, fields, is_dataclass
+from dataclasses import dataclass, field, is_dataclass
 
 
 @dataclass
@@ -9,6 +9,12 @@ class CommonApiConfig:
     backend_base_uri: str = "/fastapi/"
     firebase_api_key: str = ""
     firebase_sp_path: str = ""
+    firestore_collections: list[str] = field(default_factory=lambda: [
+        "all_user_profiles",
+        "firebase_stripe_mappings",
+        "layer_matchings",
+        "ccc"
+    ])
     stripe_api_key: str = ""
     firebase_base_url: str = "https://identitytoolkit.googleapis.com/v1/accounts:"
     firebase_refresh_token = f"{firebase_base_url[:-9]}token?key="  ## Change

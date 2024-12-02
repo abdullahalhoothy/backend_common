@@ -1,10 +1,8 @@
 from datetime import datetime
 from typing import Any
-import json
 from fastapi import Depends, HTTPException, status, Request
-
+from backend_common.logging_wrapper import apply_decorator_to_module
 from fastapi.security import OAuth2PasswordBearer
-from backend_common.database import Database
 from backend_common.dtypes.auth_dtypes import (
     ReqCreateFirebaseUser,
     ReqUserLogin,
@@ -16,25 +14,150 @@ from backend_common.dtypes.auth_dtypes import (
     ReqCreateUserProfile,
 )
 from backend_common.common_config import CONF
-from firebase_admin import firestore
+from .background import get_background_tasks
 import requests
 import os
-from firebase_admin import auth
 import firebase_admin
-from firebase_admin import credentials
+from firebase_admin import credentials, auth, firestore_async, firestore
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import stripe
+import logging
+from google.oauth2 import service_account
+import asyncio
+from fastapi import BackgroundTasks
+import time
 
-from sql_object import SqlObject
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 stripe.api_key = CONF.stripe_api_key
 
 
+
+
+
+
+class FirestoreDB:
+    def __init__(self, collections_to_listen: list[str]):
+        self._async_client = None
+        self._sync_client = None
+        self._cache = {collection: {} for collection in collections_to_listen}
+        self._collection_listeners = {}
+        self._collections_to_listen = collections_to_listen
+
+    def get_async_client(self):
+        if self._async_client is None:
+            google_auth_creds = service_account.Credentials.from_service_account_file(
+                CONF.firebase_sp_path
+            )
+            self._async_client = firestore_async.AsyncClient(
+                credentials=google_auth_creds
+            )
+        return self._async_client
+
+    def get_sync_client(self):
+        if self._sync_client is None:
+            self._sync_client = firestore.Client.from_service_account_json(
+                CONF.firebase_sp_path
+            )
+        return self._sync_client
+
+    def setup_collection_listener(self, collection_name: str):
+        """Synchronous setup of collection listener"""
+        if collection_name not in self._collection_listeners:
+            collection_ref = self.get_sync_client().collection(collection_name)
+            
+            def on_snapshot(col_snapshot, changes, read_time):
+                for change in changes:
+                    doc_id = change.document.id
+                    if change.type.name in ['ADDED', 'MODIFIED']:
+                        data = change.document.to_dict()
+                        self._cache[collection_name][doc_id] = data
+                        logger.info(f"Cache updated for {collection_name} document {doc_id}")
+                    elif change.type.name == 'REMOVED':
+                        self._cache[collection_name].pop(doc_id, None)
+                        logger.info(f"Removed {collection_name} document {doc_id} from cache")
+
+            # Watch the collection
+            self._collection_listeners[collection_name] = collection_ref.on_snapshot(on_snapshot)
+            logger.info(f"Started listener for collection {collection_name}")
+
+    async def get_document(self, collection_name: str, doc_id: str) -> dict:
+        if collection_name not in self._cache:
+            raise ValueError(f"Collection {collection_name} is not being monitored")
+            
+        if doc_id in self._cache[collection_name]:
+            logger.info(f"Retrieved {collection_name} document {doc_id} from cache")
+            return self._cache[collection_name][doc_id]
+
+        doc_ref = self.get_async_client().collection(collection_name).document(doc_id)
+        doc = await doc_ref.get()
+
+        if not doc.exists:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Document not found in {collection_name}"
+            )
+
+        data = doc.to_dict()
+        self._cache[collection_name][doc_id] = data
+        return data
+
+    async def initialize_collection_cache(self, collection_name: str):
+        collection_ref = self.get_async_client().collection(collection_name)
+        docs = await collection_ref.get()
+        for doc in docs:
+            self._cache[collection_name][doc.id] = doc.to_dict()
+        logger.info(f"Initialized cache for {collection_name} with {len(docs)} documents")
+
+    async def initialize_all(self):
+        """Initialize all caches and setup listeners"""
+        # Initialize caches asynchronously
+        for collection_name in self._collections_to_listen:
+            await self.initialize_collection_cache(collection_name)
+            
+        # Setup listeners synchronously in a thread
+        def setup_listeners():
+            for collection_name in self._collections_to_listen:
+                self.setup_collection_listener(collection_name)
+        
+        # Run synchronous listeners setup in a thread
+        await asyncio.get_event_loop().run_in_executor(None, setup_listeners)
+
+    def cleanup(self):
+        """Synchronous cleanup of listeners with proper thread shutdown"""
+        # First unsubscribe all listeners
+        for listener in self._collection_listeners.values():
+            if listener:
+                listener.unsubscribe()
+
+        # Give threads time to exit gracefully
+        time.sleep(1)  # Wait for threads to process unsubscribe
+
+        # Clear collections
+        self._collection_listeners.clear()
+        self._cache.clear()
+
+        # Close clients
+        if self._async_client:
+            self._async_client.close()
+        if self._sync_client:
+            self._sync_client.close()
+
+
+
+# Initialize Firebase admin with firebase credentials
 if os.path.exists(CONF.firebase_sp_path):
-    cred = credentials.Certificate(CONF.firebase_sp_path)
-    default_app = firebase_admin.initialize_app(cred)
-    db = firestore.client()
+    firebase_creds = credentials.Certificate(CONF.firebase_sp_path)
+    default_app = firebase_admin.initialize_app(firebase_creds)
+    # Create Firestore client with google-auth credentials
+    db = FirestoreDB(CONF.firestore_collections)
+
 
 
 class JWTBearer(HTTPBearer):
@@ -247,30 +370,34 @@ async def get_user_email_and_username(user_id: str):
         )
 
 
-# firebase and stripe store customer
 async def save_customer_mapping(firebase_uid: str, stripe_customer_id: str):
-    doc_ref = db.collection("firebase_stripe_mappings").document(firebase_uid)
-    doc_ref.set(
-        {
-            "stripe_customer_id": stripe_customer_id,
-            "created_at": firestore.SERVER_TIMESTAMP,
-        }
-    )
-
+    # Update cache immediately
+    collection_name = "firebase_stripe_mappings"
+    db._cache[collection_name][firebase_uid] = {
+        "stripe_customer_id": stripe_customer_id
+    }
+    
+    async def _background_save():
+        doc_ref = db.get_async_client().collection(collection_name).document(firebase_uid)
+        await doc_ref.set({"stripe_customer_id": stripe_customer_id})
+    
+    get_background_tasks().add_task(_background_save)
+    return {"stripe_customer_id": stripe_customer_id}
 
 async def get_stripe_customer_id(firebase_uid: str) -> str:
-    doc_ref = db.collection("firebase_stripe_mappings").document(firebase_uid)
-    doc = doc_ref.get()
-    if not doc.exists:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Stripe customer not found for this user",
-        )
-    return doc.to_dict().get("stripe_customer_id")
+    try:
+        data = await db.get_document("firebase_stripe_mappings", firebase_uid)
+        return data["stripe_customer_id"]
+    except HTTPException as e:
+        if e.status_code == status.HTTP_404_NOT_FOUND:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Stripe customer not found for this user",
+            )
+        raise e
 
-
-# User Profile Collection Functions
 async def create_user_profile(req: ReqCreateUserProfile):
+    collection_name = "all_user_profiles"
     user_data = {
         "user_id": req.user_id,
         "email": req.email,
@@ -282,44 +409,38 @@ async def create_user_profile(req: ReqCreateUserProfile):
             "draft_ctlgs": {},
         }
     }
-
-    # Add timestamp separately in Firestore but don't include in return data
-    doc_ref = db.collection('all_user_profiles').document(req.user_id)
-    firestore_data = user_data.copy()
-    firestore_data['created_at'] = firestore.SERVER_TIMESTAMP
-    doc_ref.set(firestore_data)
     
+    # Update cache immediately
+    db._cache[collection_name][req.user_id] = user_data
+    
+    async def _background_create():
+        doc_ref = db.get_async_client().collection(collection_name).document(req.user_id)
+        await doc_ref.set(user_data)
+    
+    get_background_tasks().add_task(_background_create)
     return user_data
 
-
 async def update_user_profile(user_id: str, user_data: dict):
-    try:
-        doc_ref = db.collection('all_user_profiles').document(user_id)
-        
-        # Prepare data for Firestore update
-        update_data = {
-            "user_id": user_data["user_id"],
-            "prdcer": {
-                "prdcer_dataset": user_data.get("prdcer", {}).get("prdcer_dataset", {}),
-                "prdcer_lyrs": user_data.get("prdcer", {}).get("prdcer_lyrs", {}),
-                "prdcer_ctlgs": user_data.get("prdcer", {}).get("prdcer_ctlgs", {}),
-                "draft_ctlgs": user_data.get("prdcer", {}).get("draft_ctlgs", {}),
-            },
-            "updated_at": firestore.SERVER_TIMESTAMP
+    collection_name = "all_user_profiles"
+    update_data = {
+        "user_id": user_data["user_id"],
+        "prdcer": {
+            "prdcer_dataset": user_data.get("prdcer", {}).get("prdcer_dataset", {}),
+            "prdcer_lyrs": user_data.get("prdcer", {}).get("prdcer_lyrs", {}),
+            "prdcer_ctlgs": user_data.get("prdcer", {}).get("prdcer_ctlgs", {}),
+            "draft_ctlgs": user_data.get("prdcer", {}).get("draft_ctlgs", {}),
         }
-        
-        doc_ref.update(update_data)
-        
-        # Return data without the timestamp
-        del update_data['updated_at']
-        return update_data
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error updating user profile: {str(e)}"
-        )
-
+    }
+    
+    # Update cache immediately
+    db._cache[collection_name][user_id] = update_data
+    
+    async def _background_update():
+        doc_ref = db.get_async_client().collection(collection_name).document(user_id)
+        await doc_ref.update(update_data)
+    
+    get_background_tasks().add_task(_background_update)
+    return update_data
 
 async def load_user_profile(user_id: str) -> dict:
     """
@@ -327,35 +448,15 @@ async def load_user_profile(user_id: str) -> dict:
     If the user doesn't exist, creates an empty profile.
     """
     try:
-        doc_ref = db.collection('all_user_profiles').document(user_id)
-        doc = doc_ref.get()
-        
-
-        if not doc.exists:
-            # User doesn't exist, create an empty profile
+        return await db.get_document('all_user_profiles', user_id)
+    except HTTPException as e:
+        if e.status_code == status.HTTP_404_NOT_FOUND:
             req = ReqCreateUserProfile(
                 user_id=user_id, username="", password="", email=""
             )
             return await create_user_profile(req)
-            
-        data = doc.to_dict()
-        # Remove timestamp fields before returning
-        if 'created_at' in data:
-            del data['created_at']
-        if 'updated_at' in data:
-            del data['updated_at']
-            
-        return {
-            "user_id": data["user_id"],
-            "prdcer": {
-                "prdcer_dataset": data["prdcer"]["prdcer_dataset"],
-                "prdcer_lyrs": data["prdcer"]["prdcer_lyrs"],
-                "prdcer_ctlgs": data["prdcer"]["prdcer_ctlgs"],
-                "draft_ctlgs": data["prdcer"]["draft_ctlgs"],
-            }
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error loading user profile: {str(e)}"
-        )
+        raise e
+    
+
+# Apply the decorator to all functions in this module
+apply_decorator_to_module(logger)(__name__)
