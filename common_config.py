@@ -32,6 +32,11 @@ class CommonApiConfig:
     refresh_token: str = backend_base_uri + "refresh-token"
     user_profile: str = backend_base_uri + "user_profile"
 
+    # Google Bucket fields
+    google_product_bucket_name: str = "vivi_app"
+    google_bucket_credentials_json_path: str = "secrets/weighty-gasket-437422-h6-a9caa84da98d.json"
+    google_product_bucket_path: str = "postgreSQL/dbo-coffee/raw_schema_marketplace/product_images"
+
     # Stripe Product URLs
     create_stripe_product: str = backend_base_uri + "create_stripe_product"
     update_stripe_product: str = backend_base_uri + "update_stripe_product"
