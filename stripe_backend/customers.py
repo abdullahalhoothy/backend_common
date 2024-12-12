@@ -30,6 +30,9 @@ async def create_stripe_customer(req: str) -> dict:
         balance=0,
     )
 
+    # Save the mapping in Firestore
+    await save_customer_mapping(user_id, customer.id)
+
     customer_json = dict(customer)
     customer_json["user_id"] = user_id
 

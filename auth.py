@@ -12,7 +12,6 @@ from backend_common.dtypes.auth_dtypes import (
     ReqRefreshToken,
     ReqChangeEmail,
     ReqCreateUserProfile,
-    ReqStripeFireBaseID
 )
 from backend_common.common_config import CONF
 from .background import get_background_tasks
@@ -371,19 +370,19 @@ async def get_user_email_and_username(user_id: str):
         )
 
 
-async def save_customer_mapping(req: ReqStripeFireBaseID):
+async def save_customer_mapping(firebase_uid: str, stripe_customer_id: str):
     # Update cache immediately
     collection_name = "firebase_stripe_mappings"
-    db._cache[collection_name][req.firebase_uid] = {
-        "stripe_customer_id": req.stripe_customer_id
+    db._cache[collection_name][firebase_uid] = {
+        "stripe_customer_id": stripe_customer_id
     }
     
     async def _background_save():
-        doc_ref = db.get_async_client().collection(collection_name).document(req.firebase_uid)
-        await doc_ref.set({"stripe_customer_id": req.stripe_customer_id})
+        doc_ref = db.get_async_client().collection(collection_name).document(firebase_uid)
+        await doc_ref.set({"stripe_customer_id": stripe_customer_id})
     
-    req.background_tasks.add_task(_background_save)
-    return {"stripe_customer_id": req.stripe_customer_id}
+    get_background_tasks().add_task(_background_save)
+    return {"stripe_customer_id": stripe_customer_id}
 
 async def get_stripe_customer_id(firebase_uid: str) -> str:
     try:

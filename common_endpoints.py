@@ -1,4 +1,4 @@
-from fastapi import Body, HTTPException, status, FastAPI, Request, Depends, BackgroundTasks
+from fastapi import Body, HTTPException, status, FastAPI, Request, Depends
 from backend_common.auth import JWTBearer
 from backend_common.dtypes.auth_dtypes import (
     ReqCreateFirebaseUser,
@@ -11,7 +11,6 @@ from backend_common.dtypes.auth_dtypes import (
     ReqUserLogin,
     ReqUserProfile,
     ReqUserProfile,
-    ReqStripeFireBaseID
 )
 from backend_common.request_processor import request_handling
 from typing import Dict, List, TypeVar, Generic, Literal, Any, Optional, Union
@@ -25,7 +24,7 @@ from backend_common.auth import (
     refresh_id_token,
     change_email,
 )
-from backend_common.stripe_backend.customers import create_stripe_customer, save_customer_mapping
+from backend_common.stripe_backend.customers import create_stripe_customer
 
 app = FastAPI()
 
@@ -37,19 +36,13 @@ def index():
 
 
 @app.post("/create_firebase_stripe_user", response_model=list[Dict[Any, Any]])
-async def create_user_profile_endpoint(req: ReqCreateFirebaseUser, background_tasks: BackgroundTasks):
+async def create_user_profile_endpoint(req: ReqCreateFirebaseUser):
 
     response_1 = await request_handling(
         req, ReqCreateFirebaseUser, dict[Any, Any], create_firebase_user
     )
     response_2 = await request_handling(
         response_1["user_id"], None, dict[Any, Any], create_stripe_customer
-    )
-
-    await request_handling(
-        ReqStripeFireBaseID(firebase_uid=response_2['user_id'], stripe_customer_id=response_2['id'],
-                            background_tasks=background_tasks) , None, dict[Any, Any],
-        save_customer_mapping
     )
     response = [response_1, response_2]
     return response
