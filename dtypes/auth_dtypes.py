@@ -53,3 +53,8 @@ class ReqChangeEmail(BaseModel):
 class ReqRefreshToken(BaseModel):
     grant_type: str
     refresh_token: str
+
+class ReqStripeFireBaseID(BaseModel):
+    firebase_uid: str
+    stripe_customer_id: str
+    background_tasks: Any
