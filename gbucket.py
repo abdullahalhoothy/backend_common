@@ -15,7 +15,7 @@ def get_google_cloud_bucket_conn(bucket_name: str, cred_path: str):
 def upload_file_to_google_cloud_bucket(file, bucket_name, bucket_path, cred_path):
     """Upload file to google bucket"""
     bucket = get_google_cloud_bucket_conn(bucket_name, cred_path)
-    blob = bucket.blob(f"{bucket_path}/{file.filename}-{time.time()}")
+    blob = bucket.blob(f"{bucket_path}/{time.time()}-{file.filename}")
     blob.upload_from_file(file.file, content_type=file.content_type)
     # blob.make_public()
     return blob.public_url

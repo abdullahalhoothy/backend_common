@@ -17,6 +17,7 @@ from backend_common.common_config import CONF
 from .background import get_background_tasks
 import requests
 import os
+import json
 import firebase_admin
 from firebase_admin import credentials, auth, firestore_async, firestore
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -187,13 +188,35 @@ class JWTBearer(HTTPBearer):
     async def verify_jwt(self, jwt_token: str) -> bool:
         decoded_token = my_verify_id_token(jwt_token)
         token_user_id = decoded_token["uid"]
-        # Check if the token user_id matches the requested user_id
-        request_body = await self.request.json()
-        if request_body.get("user_id") and token_user_id != request_body.get("user_id"):
+        
+        # Handle both JSON and form data
+        content_type = self.request.headers.get('content-type', '')
+        
+        if 'multipart/form-data' in content_type:
+            # For multipart form data, get the form first
+            form = await self.request.form()
+            # Check if there's a JSON string in the form data
+            if 'data' in form:
+                try:
+                    request_data = json.loads(form['data'])
+                    user_id = request_data.get('request_body', {}).get('user_id')
+                except json.JSONDecodeError:
+                    return False
+            else:
+                # Direct form fields
+                user_id = form.get('user_id')
+        else:
+            # Regular JSON request
+            try:
+                request_body = await self.request.json()
+                user_id = request_body.get("user_id")
+            except json.JSONDecodeError:
+                return False
+
+        if user_id and token_user_id != user_id:
             return False
         return True
-
-
+    
 async def create_firebase_user(req: ReqCreateFirebaseUser) -> dict[str, Any]:
     try:
         # Create user in Firebase
