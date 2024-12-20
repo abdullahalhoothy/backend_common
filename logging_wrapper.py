@@ -3,22 +3,126 @@ import logging
 import time
 import inspect
 import sys
-from typing import Callable
 from functools import wraps
-from typing import Callable, Any, Type, Optional
 from pydantic import BaseModel, ValidationError
 from fastapi import HTTPException, status
-import asyncio
-
-import functools
-import logging
-import time
 import asyncio
 from typing import Callable, Any, Type, Optional, List, get_origin, get_args
-from pydantic import BaseModel, ValidationError
-from fastapi import HTTPException, status
+
+def format_type_info(type_info, indent=0):
+    """Format type info in a readable hierarchical structure"""
+    indent_str = "  " * indent
+    
+    # Base cases - handle primitive types and None
+    if type_info is None:
+        return "None"
+        
+    if not isinstance(type_info, dict):
+        return str(type_info)
+        
+    # Handle dictionary type_info structure
+    result = []
+    type_name = type_info.get('type', 'unknown')
+    result.append(type_name)
+    
+    # Add length if present
+    if 'length' in type_info:
+        result[-1] += f" ({type_info['length']} items)"
+    
+    # Handle fields
+    fields = type_info.get('fields')
+    if fields:
+        if isinstance(fields, dict):
+            result.append(f"{indent_str}  Fields:")
+            for field, field_type in fields.items():
+                formatted_type = format_type_info(field_type, indent + 2)
+                result.append(f"{indent_str}    {field}: {formatted_type}")
+        else:
+            result.append(f"{indent_str}  Fields: {fields}")
+    
+    # Handle value types
+    value_types = type_info.get('value_types')
+    if value_types and isinstance(value_types, dict):
+        result.append(f"{indent_str}  Values:")
+        for key, value_type in value_types.items():
+            formatted_type = format_type_info(value_type, indent + 2)
+            result.append(f"{indent_str}    {key}: {formatted_type}")
+    
+    # Handle sample types
+    sample_types = type_info.get('sample_types')
+    if sample_types and isinstance(sample_types, (list, tuple)):
+        result.append(f"{indent_str}  Sample types:")
+        for sample in sample_types:
+            formatted_type = format_type_info(sample, indent + 2)
+            result.append(f"{indent_str}    - {formatted_type}")
+    
+    return "\n".join(result)
 
 
+def get_detailed_type_info(obj, current_depth=0, max_depth=3):
+    """Get detailed type information with special handling for Pydantic models"""
+    if current_depth >= max_depth:
+        return str(type(obj).__name__)
+    
+    if isinstance(obj, BaseModel):
+        # Use Pydantic's model_json_schema for efficient schema extraction
+        schema = obj.model_json_schema()
+        return {
+            'type': type(obj).__name__,
+            'fields': {
+                field: get_detailed_type_info(getattr(obj, field), current_depth + 1, max_depth)
+                for field in obj.model_fields.keys()
+            } if current_depth < max_depth - 1 else 'nested_fields'
+        }
+    
+    if isinstance(obj, dict):
+        return {
+            'type': 'dict',
+            'value_types': {
+                k: get_detailed_type_info(v, current_depth + 1, max_depth)
+                for k, v in list(obj.items())[:5]  # Limit to first 5 keys
+            }
+        }
+    
+    if isinstance(obj, (list, tuple, set)):
+        container_type = type(obj).__name__
+        if len(obj) == 0:
+            return f"empty_{container_type}"
+        
+        # Sample first few elements
+        sample_size = min(3, len(obj))
+        samples = list(obj)[:sample_size]
+        
+        return {
+            'type': container_type,
+            'length': len(obj),
+            'sample_types': [
+                get_detailed_type_info(item, current_depth + 1, max_depth)
+                for item in samples
+            ]
+        }
+    
+    # Handle common Python types with additional info
+    if isinstance(obj, (int, float, str, bool)):
+        return type(obj).__name__
+    
+    if obj is None:
+        return 'None'
+    
+    # For other types, just return the type name
+    return type(obj).__name__
+
+
+def get_basic_type_info(obj):
+    """Get basic type information without deep inspection"""
+    if isinstance(obj, dict):
+        return f"dict[{len(obj)} keys]"
+    elif isinstance(obj, (list, tuple)):
+        return f"{type(obj).__name__}[{len(obj)} items]"
+    elif isinstance(obj, BaseModel):
+        return f"{type(obj).__name__}[Pydantic]"
+    else:
+        return type(obj).__name__
 
 def log_and_validate(
     logger: logging.Logger,
@@ -28,23 +132,35 @@ def log_and_validate(
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
-            start_time = time.time()
-            func_name = func.__name__
-            # Log the arguments
+            wrapper_start = time.time()
+            
+            # Pre-execution logging
             args_repr = [repr(a)[:500] for a in args]
             kwargs_repr = [f"{k}={v!r}"[:500] for k, v in kwargs.items()]
             signature = ", ".join(args_repr + kwargs_repr)
-            logger.info(f"{func_name} called with args: {signature}")
-
+            logger.info(f"{func.__name__} called with args: {signature}")
+            
+            pre_exec_time = time.time()
+            overhead = pre_exec_time - wrapper_start
+            
             try:
+                # Core function execution timing
+                func_start = time.time()
                 result = await func(*args, **kwargs)
-
+                func_end = time.time()
+                func_time = func_end - func_start
+                
+                # Post-execution operations timing
+                post_start = time.time()
+                
+                # Type info logging
+                type_info = get_detailed_type_info(result)
+                
+                # Validation if needed
                 if validate_output and output_model:
-                    validation_start = time.time()
                     try:
                         origin = get_origin(output_model)
                         if origin is list or origin is List:
-                            # Validate each item in the list
                             item_model = get_args(output_model)[0]
                             for item in result:
                                 item_model.model_validate(item)
@@ -52,60 +168,70 @@ def log_and_validate(
                             output_model.model_validate(result)
                         else:
                             raise ValueError("Unsupported output_model type")
-
-                        validation_time = time.time() - validation_start
-                        logger.info(
-                            f"{func_name}: Output validation successful. Time: {validation_time:.4f} seconds"
-                        )
                     except ValidationError as ve:
-                        logger.error(f"{func_name}: Output validation failed: {ve}")
+                        logger.error(f"{func.__name__}: Output validation failed: {ve}")
                         raise HTTPException(
                             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                             detail="Output validation failed",
                         ) from ve
-
-                total_time = time.time() - start_time
+                
+                post_end = time.time()
+                post_overhead = post_end - post_start
+                total_overhead = overhead + post_overhead
+                total_time = post_end - wrapper_start
+                
+                # Timing breakdown logging
                 logger.info(
-                    f"{func_name}: Function executed successfully. Total time: {total_time:.4f} seconds"
+                    f"{func.__name__} execution details:\n"
+                    f"Timing:\n"
+                    f"  - Core function execution: {func_time:.4f}s\n"
+                    f"  - Logging/validation overhead: {total_overhead:.4f}s\n"
+                    f"  - Total time: {total_time:.4f}s\n"
+                    f"Return type structure:\n"
+                    f"{format_type_info(type_info)}"
                 )
+                
                 return result
 
-            except HTTPException as http_exc:
-                total_time = time.time() - start_time
-                logger.error(
-                    f"{func_name}: HTTP error: {http_exc.detail}. Status code: {http_exc.status_code}. Total time: {total_time:.4f} seconds"
-                )
-                raise http_exc
-
             except Exception as e:
-                total_time = time.time() - start_time
+                error_time = time.time()
+                total_time = error_time - wrapper_start
                 logger.exception(
-                    f"{func_name}: Unexpected error: {str(e)}. Total time: {total_time:.4f} seconds"
+                    f"{func.__name__}: Error after {total_time:.4f}s: {str(e)}"
                 )
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"An unexpected error occurred: {str(e)}",
-                ) from e
+                raise
 
         @functools.wraps(func)
         def sync_wrapper(*args, **kwargs):
-            start_time = time.time()
-            func_name = func.__name__
-            # Log the arguments
+            wrapper_start = time.time()
+            
+            # Pre-execution logging
             args_repr = [repr(a)[:500] for a in args]
             kwargs_repr = [f"{k}={v!r}"[:500] for k, v in kwargs.items()]
             signature = ", ".join(args_repr + kwargs_repr)
-            logger.info(f"{func_name} called with args: {signature}")
-
+            logger.info(f"{func.__name__} called with args: {signature}")
+            
+            pre_exec_time = time.time()
+            overhead = pre_exec_time - wrapper_start
+            
             try:
+                # Core function execution timing
+                func_start = time.time()
                 result = func(*args, **kwargs)
-
+                func_end = time.time()
+                func_time = func_end - func_start
+                
+                # Post-execution operations timing
+                post_start = time.time()
+                
+                # Type info logging
+                type_info = get_detailed_type_info(result)
+                
+                # Validation if needed
                 if validate_output and output_model:
-                    validation_start = time.time()
                     try:
                         origin = get_origin(output_model)
-                        if origin is List:
-                            # Validate each item in the list
+                        if origin is list or origin is List:
                             item_model = get_args(output_model)[0]
                             for item in result:
                                 item_model.model_validate(item)
@@ -113,40 +239,38 @@ def log_and_validate(
                             output_model.model_validate(result)
                         else:
                             raise ValueError("Unsupported output_model type")
-
-                        validation_time = time.time() - validation_start
-                        logger.info(
-                            f"{func_name}: Output validation successful. Time: {validation_time:.4f} seconds"
-                        )
                     except ValidationError as ve:
-                        logger.error(f"{func_name}: Output validation failed: {ve}")
+                        logger.error(f"{func.__name__}: Output validation failed: {ve}")
                         raise HTTPException(
                             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                             detail="Output validation failed",
                         ) from ve
-
-                total_time = time.time() - start_time
+                
+                post_end = time.time()
+                post_overhead = post_end - post_start
+                total_overhead = overhead + post_overhead
+                total_time = post_end - wrapper_start
+                
+                # Timing breakdown logging
                 logger.info(
-                    f"{func_name}: Function executed successfully. Total time: {total_time:.4f} seconds"
+                    f"{func.__name__} execution details:\n"
+                    f"Timing:\n"
+                    f"  - Core function execution: {func_time:.4f}s\n"
+                    f"  - Logging/validation overhead: {total_overhead:.4f}s\n"
+                    f"  - Total time: {total_time:.4f}s\n"
+                    f"Return type structure:\n"
+                    f"{format_type_info(type_info)}"
                 )
+                
                 return result
 
-            except HTTPException as http_exc:
-                total_time = time.time() - start_time
-                logger.error(
-                    f"{func_name}: HTTP error: {http_exc.detail}. Status code: {http_exc.status_code}. Total time: {total_time:.4f} seconds"
-                )
-                raise http_exc
-
             except Exception as e:
-                total_time = time.time() - start_time
+                error_time = time.time()
+                total_time = error_time - wrapper_start
                 logger.exception(
-                    f"{func_name}: Unexpected error: {str(e)}. Total time: {total_time:.4f} seconds"
+                    f"{func.__name__}: Error after {total_time:.4f}s: {str(e)}"
                 )
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"An unexpected error occurred: {str(e)}",
-                ) from e
+                raise
 
         return async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper
 
