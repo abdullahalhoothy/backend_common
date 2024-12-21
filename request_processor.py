@@ -1,6 +1,6 @@
 import json
 import uuid
-
+from pydantic import ValidationError
 from fastapi import HTTPException, status
 from typing import TypeVar, Optional, Type, Callable, Awaitable, Any
 from pydantic import BaseModel
@@ -25,7 +25,18 @@ async def request_handling(
     wrap_output: bool = False
 ):
     if req and input_type:
-        input_type.model_validate(req)
+        try:
+            input_type.model_validate(req)
+        except ValidationError as e:
+            # You can customize the error response format
+            validation_errors = e.errors()
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "message": "Validation failed",
+                    "errors": validation_errors
+                }
+            )
 
     if custom_function is not None:
         try:
