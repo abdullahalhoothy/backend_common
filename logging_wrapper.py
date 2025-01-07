@@ -187,8 +187,8 @@ def log_and_validate(
                     f"  - Core function execution: {func_time:.4f}s\n"
                     f"  - Logging/validation overhead: {total_overhead:.4f}s\n"
                     f"  - Total time: {total_time:.4f}s\n"
-                    f"Return type structure:\n"
-                    f"{format_type_info(type_info)}"
+                    # f"Return type structure:\n"
+                    # f"{format_type_info(type_info)}"
                 )
                 
                 return result
@@ -258,8 +258,8 @@ def log_and_validate(
                     f"  - Core function execution: {func_time:.4f}s\n"
                     f"  - Logging/validation overhead: {total_overhead:.4f}s\n"
                     f"  - Total time: {total_time:.4f}s\n"
-                    f"Return type structure:\n"
-                    f"{format_type_info(type_info)}"
+                    # f"Return type structure:\n"
+                    # f"{format_type_info(type_info)}"
                 )
                 
                 return result

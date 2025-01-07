@@ -95,6 +95,7 @@ class Database:
         Returns:
             List[Record]: List of all matching records
         """
+        logger.info(f"Executing fetch query: {cls.generate_sql_script(query, *args)}")
         async with cls.connection() as conn:
             return await conn.fetch(query, *args)
 
@@ -110,6 +111,7 @@ class Database:
         Returns:
             Record: First matching record or None
         """
+        logger.info(f"Executing fetchrow query: {cls.generate_sql_script(query, *args)}")
         async with cls.connection() as conn:
             return await conn.fetchrow(query, *args)
 
@@ -126,6 +128,8 @@ class Database:
         Returns:
             str: Command completion tag
         """
+        formatted_query = cls.generate_sql_script(query, *args)
+        logger.info(f"Executing query: {formatted_query}")
         async with cls.connection() as conn:
             if save_sql_script:
                 unique_id = str(uuid.uuid4())[:8]
@@ -147,6 +151,8 @@ class Database:
         Returns:
             List[str]: List of command completion tags
         """
+        logger.info(f"Executing many queries with template: {query}")
+        logger.debug(f"First few entries: {entries[:3]}")  # Log just first few entries to avoid overwhelming logs
         async with cls.connection() as conn:
             return await conn.executemany(query, entries)
 
