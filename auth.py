@@ -486,7 +486,7 @@ async def load_user_profile(user_id: str) -> dict:
     except HTTPException as e:
         if e.status_code == status.HTTP_404_NOT_FOUND:
             req = ReqCreateUserProfile(
-                user_id=user_id, username="", password="", email=""
+                user_id="temp", username="", password="", email=""
             )
             return await create_user_profile(req)
         raise e
