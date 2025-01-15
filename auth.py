@@ -455,13 +455,22 @@ async def create_user_profile(req: ReqCreateUserProfile):
 
 async def update_user_profile(user_id: str, user_data: dict):
     collection_name = "all_user_profiles"
+
+    prdcer_data = user_data.get("prdcer", {})
+
+    prdcer_dataset = {}
+
+    for key, value in prdcer_data.get("prdcer_dataset", {}).items():
+        if key is not None and key != "":
+            prdcer_dataset[key] = value
+
     update_data = {
         "user_id": user_data["user_id"],
         "prdcer": {
-            "prdcer_dataset": user_data.get("prdcer", {}).get("prdcer_dataset", {}),
-            "prdcer_lyrs": user_data.get("prdcer", {}).get("prdcer_lyrs", {}),
-            "prdcer_ctlgs": user_data.get("prdcer", {}).get("prdcer_ctlgs", {}),
-            "draft_ctlgs": user_data.get("prdcer", {}).get("draft_ctlgs", {}),
+            "prdcer_dataset": prdcer_dataset,
+            "prdcer_lyrs": prdcer_data.get("prdcer_lyrs", {}),
+            "prdcer_ctlgs": prdcer_data.get("prdcer_ctlgs", {}),
+            "draft_ctlgs": prdcer_data.get("draft_ctlgs", {}),
         },
     }
 
