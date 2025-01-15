@@ -456,10 +456,19 @@ async def create_user_profile(req: ReqCreateUserProfile):
 async def update_user_profile(user_id: str, user_data: dict):
     collection_name = "all_user_profiles"
 
+    if (
+        user_id is None
+        or user_id == ""
+        or user_data.get("user_id", "").strip() == ""
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid user_id: user_id cannot be empty"
+        )
+
     prdcer_data = user_data.get("prdcer", {})
-
+    
     prdcer_dataset = {}
-
     for key, value in prdcer_data.get("prdcer_dataset", {}).items():
         if key is not None and key != "":
             prdcer_dataset[key] = value
