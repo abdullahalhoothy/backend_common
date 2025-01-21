@@ -1,55 +1,42 @@
 from typing import Dict, List, TypeVar, Generic, Optional, Any
-
 from pydantic import BaseModel
 
-
+# Base classes
 class ReqUserId(BaseModel):
     user_id: str
 
+class ReqAuth(BaseModel):
+    email: str
+    password: str
 
-class ReqCreateFirebaseUser(BaseModel):
+# Derived classes
+class ReqCreateFirebaseUser(ReqAuth):
     username: str
-    email: str
-    password: str
 
+class ReqCreateUserProfile(ReqCreateFirebaseUser, ReqUserId):
+    pass
 
-class ReqCreateUserProfile(ReqCreateFirebaseUser):
-    user_id: str
+class ReqUserLogin(ReqAuth):
+    pass
 
-
-class ReqUserLogin(BaseModel):
-    email: str
-    password: str
-
-
-class ReqUserProfile(BaseModel):
-    user_id: str
-
+class ReqUserProfile(ReqUserId):
+    pass
 
 class ReqResetPassword(BaseModel):
     email: str
-
 
 class ReqConfirmReset(BaseModel):
     oob_code: str
     new_password: str
 
-
-class ReqChangePassword(BaseModel):
-    user_id: str
-    email: str
-    password: str
+class ReqChangePassword(ReqUserId, ReqAuth):
     new_password: str
 
-
-class ReqChangeEmail(BaseModel):
-    user_id: str
+class ReqChangeEmail(ReqUserId):
     current_email: str
     new_email: str
     password: str
 
-
-## Added it for Refresh token
 class ReqRefreshToken(BaseModel):
     grant_type: str
     refresh_token: str
