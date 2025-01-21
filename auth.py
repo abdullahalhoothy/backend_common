@@ -428,10 +428,23 @@ async def get_stripe_customer_id(firebase_uid: str) -> str:
 
 async def create_user_profile(req: ReqCreateUserProfile):
     collection_name = "all_user_profiles"
+
+    # Validate member accounts must have an admin
+    if req.account_type == "member" and not req.admin_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Member accounts must have an associated administrator"
+        )
+    
     user_data = {
         "user_id": req.user_id,
         "email": req.email,
         "username": req.username,
+        "account_type": req.account_type,
+        "admin_id": req.admin_id,
+        "settings": {
+            "show_price_on_purchase": req.show_price_on_purchase if req.account_type == "admin" else False
+        },
         "prdcer": {
             "prdcer_dataset": {},
             "prdcer_lyrs": {},
