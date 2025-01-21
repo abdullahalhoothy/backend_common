@@ -19,7 +19,7 @@ from backend_common.stripe_backend.subscriptions import (
     deactivate_subscription,
 )
 from backend_common.stripe_backend.prices import create_price, update_price, delete_price, list_prices
-from backend_common.stripe_backend.wallets import charge_wallet, fetch_wallet
+from backend_common.stripe_backend.wallets import top_up_wallet, fetch_wallet
 from backend_common.stripe_backend.products import (
     create_stripe_product,
     update_stripe_product,
