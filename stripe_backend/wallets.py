@@ -38,3 +38,27 @@ async def fetch_wallet(user_id: str) -> dict:
         "balance": balance / 100.0,  # Stripe returns balance in cents
         "currency": "usd",
     }
+
+async def deduct_from_wallet(user_id: str, amount: int) -> dict:
+    # Fetch the customer from Stripe
+    customer = await fetch_customer(user_id=user_id)
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    # Check if customer has sufficient balance
+    if customer['balance'] < amount:
+        raise HTTPException(
+            status_code=400, 
+            detail="Insufficient balance in wallet"
+        )
+    
+    # Deduct funds from the customer's balance in Stripe
+    # Note: For deductions, we pass a negative amount
+    adjustment = stripe.Customer.create_balance_transaction(
+        customer['id'],
+        amount=-amount,  # Negative amount to decrease balance
+        currency="usd",
+        description="Deducted funds from wallet"
+    )
+    
+    return adjustment.to_dict_recursive()
