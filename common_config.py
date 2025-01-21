@@ -39,7 +39,7 @@ class CommonApiConfig:
     list_stripe_products: str = backend_base_uri + "list_stripe_products"
 
     # Stripe wallet URLs
-    charge_wallet: str = backend_base_uri + "charge_wallet"
+    top_up_wallet: str = backend_base_uri + "top_up_wallet"
     fetch_wallet: str = backend_base_uri + "fetch_wallet"
     deduct_wallet: str = backend_base_uri + "deduct_wallet"
 

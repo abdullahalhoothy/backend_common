@@ -4,7 +4,7 @@ from backend_common.stripe_backend.customers import fetch_customer
 
 
 # wallet functions
-async def charge_wallet(user_id: str, amount: int) -> dict:
+async def top_up_wallet(user_id: str, amount: int) -> dict:
     # Fetch the customer from Stripe
     customer = await fetch_customer(user_id=user_id)
     if not customer:
