@@ -91,6 +91,10 @@ class CommonApiConfig:
                     data = json.load(config_file)
                     conf.firebase_api_key = data.get("firebase_api_key", "")
                     conf.firebase_sp_path = data.get("firebase_sp_path", "")
+
+            if os.path.exists("secrets/secret_stripe.json"):
+                with open("secrets/secret_stripe.json", "r", encoding="utf-8") as config_file:
+                    data = json.load(config_file)
                     conf.stripe_api_key = data.get("stripe_api_key", "")
 
             return conf
