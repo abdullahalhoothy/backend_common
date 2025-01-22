@@ -23,8 +23,8 @@ class ReqCreateFirebaseUser(ReqAuth):
     username: str
 
 
-class ReqCreateUserProfile(ReqCreateFirebaseUser, ReqUserId, UserProfileSettings):
-    pass
+class ReqCreateUserProfile(ReqCreateFirebaseUser, UserProfileSettings):
+    user_id: Optional[str] = ""
 
 
 class ReqUserLogin(ReqAuth):
