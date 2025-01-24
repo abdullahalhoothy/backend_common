@@ -186,4 +186,10 @@ class PaymentMethodAttachReq(BaseModel):
     user_id: str
     payment_method_id: str
 
+class TopUpWalletReq(BaseModel):
+    user_id: str
+    amount: int
 
+class DeductWalletReq(BaseModel):
+    user_id: str
+    amount: int

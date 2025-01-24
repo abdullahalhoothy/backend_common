@@ -1,10 +1,14 @@
 from fastapi import HTTPException
 import stripe
 from backend_common.stripe_backend.customers import fetch_customer
+from backend_common.dtypes.stripe_dtypes import TopUpWalletReq,DeductWalletReq
 
 
 # wallet functions
-async def top_up_wallet(user_id: str, amount: int) -> dict:
+async def top_up_wallet(req: TopUpWalletReq):
+    # Access the parameters from the request body
+    user_id = req.user_id
+    amount = req.amount
     # Fetch the customer from Stripe
     customer = await fetch_customer(user_id=user_id)
     if not customer:
@@ -21,7 +25,7 @@ async def top_up_wallet(user_id: str, amount: int) -> dict:
         ),
     )
 
-    return  adjustment.to_dict_recursive()
+    return  dict(adjustment)
 
 
 async def fetch_wallet(user_id: str) -> dict:
@@ -39,7 +43,10 @@ async def fetch_wallet(user_id: str) -> dict:
         "currency": "usd",
     }
 
-async def deduct_from_wallet(user_id: str, amount: int) -> dict:
+async def deduct_from_wallet(req: DeductWalletReq):
+    # Access the parameters from the request body
+    user_id = req.user_id
+    amount = req.amount
     # Fetch the customer from Stripe
     customer = await fetch_customer(user_id=user_id)
     if not customer:
@@ -61,4 +68,4 @@ async def deduct_from_wallet(user_id: str, amount: int) -> dict:
         description="Deducted funds from wallet"
     )
     
-    return adjustment.to_dict_recursive()
+    return dict(adjustment)
