@@ -12,7 +12,7 @@ class ReqAuth(BaseModel):
     password: str
 
 
-class UserProfileSettings(BaseModel):
+class UserProfileSettings(ReqUserId):
     account_type: str = "admin"  # default to admin
     admin_id: Optional[str] = None  # Only required for member accounts
     show_price_on_purchase: bool = False

@@ -478,33 +478,46 @@ async def update_user_profile(user_id: str, user_data: dict):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid user_id: user_id cannot be empty"
         )
-
-    prdcer_data = user_data.get("prdcer", {})
     
-    prdcer_dataset = {}
+    # Get existing data first
+    existing_data = db._cache[collection_name].get(user_id, {})
+    prdcer_data = user_data.get("prdcer", {})
+    existing_prdcer = existing_data.get("prdcer", {})
+    
+    # Update prdcer_dataset while preserving existing values
+    prdcer_dataset = existing_prdcer.get("prdcer_dataset", {}).copy()
     for key, value in prdcer_data.get("prdcer_dataset", {}).items():
         if key is not None and key != "":
             prdcer_dataset[key] = value
 
+    # Create update data preserving existing values
     update_data = {
         "user_id": user_data["user_id"],
         "prdcer": {
             "prdcer_dataset": prdcer_dataset,
-            "prdcer_lyrs": prdcer_data.get("prdcer_lyrs", {}),
-            "prdcer_ctlgs": prdcer_data.get("prdcer_ctlgs", {}),
-            "draft_ctlgs": prdcer_data.get("draft_ctlgs", {}),
+            "prdcer_lyrs": prdcer_data.get("prdcer_lyrs", existing_prdcer.get("prdcer_lyrs", {})),
+            "prdcer_ctlgs": prdcer_data.get("prdcer_ctlgs", existing_prdcer.get("prdcer_ctlgs", {})),
+            "draft_ctlgs": prdcer_data.get("draft_ctlgs", existing_prdcer.get("draft_ctlgs", {})),
         },
+        "settings": {"show_price_on_purchase": user_data.get("show_price_on_purchase", existing_data.get("show_price_on_purchase", False))},
+        "account_type": user_data.get("account_type", existing_data.get("account_type", "")),
+        "admin_id": user_data.get("admin_id", existing_data.get("admin_id", "")),
+        
     }
 
-    # Update cache immediately
-    db._cache[collection_name][user_id] = update_data
+    # Merge with existing data
+    merged_data = {**existing_data, **update_data}
+    
+    # Update cache
+    db._cache[collection_name][user_id] = merged_data
 
     async def _background_update():
         doc_ref = db.get_async_client().collection(collection_name).document(user_id)
+        # Use Firestore's update instead of set to only update specified fields
         await doc_ref.update(update_data)
 
     get_background_tasks().add_task(_background_update)
-    return update_data
+    return merged_data
 
 
 async def load_user_profile(user_id: str) -> dict:
