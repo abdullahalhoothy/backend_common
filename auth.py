@@ -499,15 +499,17 @@ async def update_user_profile(user_id: str, user_data: dict):
             "prdcer_ctlgs": prdcer_data.get("prdcer_ctlgs", existing_prdcer.get("prdcer_ctlgs", {})),
             "draft_ctlgs": prdcer_data.get("draft_ctlgs", existing_prdcer.get("draft_ctlgs", {})),
         },
-        "settings": {"show_price_on_purchase": user_data.get("show_price_on_purchase", existing_data.get("show_price_on_purchase", False))},
+        "settings": {
+            **existing_data.get("settings", {}),  # Preserve existing settings
+            **user_data.get("settings", {}),      # Update with user_data settings
+        },
         "account_type": user_data.get("account_type", existing_data.get("account_type", "")),
         "admin_id": user_data.get("admin_id", existing_data.get("admin_id", "")),
-        
     }
 
     # Merge with existing data
     merged_data = {**existing_data, **update_data}
-    
+
     # Update cache
     db._cache[collection_name][user_id] = merged_data
 
