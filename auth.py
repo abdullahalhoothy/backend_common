@@ -12,6 +12,7 @@ from backend_common.dtypes.auth_dtypes import (
     ReqRefreshToken,
     ReqChangeEmail,
     ReqCreateUserProfile,
+    UserProfileSettings
 )
 from backend_common.common_config import CONF
 from .background import get_background_tasks
@@ -469,28 +470,23 @@ async def create_user_profile(req: ReqCreateUserProfile):
 async def update_user_profile(user_id: str, user_data: dict):
     collection_name = "all_user_profiles"
 
-    if (
-        user_id is None
-        or user_id == ""
-        or user_data.get("user_id", "").strip() == ""
-    ):
+    if not user_id or user_data.get("user_id", "").strip() == "":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid user_id: user_id cannot be empty"
         )
     
-    # Get existing data first
     existing_data = db._cache[collection_name].get(user_id, {})
     prdcer_data = user_data.get("prdcer", {})
     existing_prdcer = existing_data.get("prdcer", {})
     
-    # Update prdcer_dataset while preserving existing values
+    # Update prdcer_dataset
     prdcer_dataset = existing_prdcer.get("prdcer_dataset", {}).copy()
     for key, value in prdcer_data.get("prdcer_dataset", {}).items():
-        if key is not None and key != "":
+        if key:  # Simplified null/empty check
             prdcer_dataset[key] = value
 
-    # Create update data preserving existing values
+    # Profile-specific update data
     update_data = {
         "user_id": user_data["user_id"],
         "prdcer": {
@@ -498,25 +494,50 @@ async def update_user_profile(user_id: str, user_data: dict):
             "prdcer_lyrs": prdcer_data.get("prdcer_lyrs", existing_prdcer.get("prdcer_lyrs", {})),
             "prdcer_ctlgs": prdcer_data.get("prdcer_ctlgs", existing_prdcer.get("prdcer_ctlgs", {})),
             "draft_ctlgs": prdcer_data.get("draft_ctlgs", existing_prdcer.get("draft_ctlgs", {})),
-        },
-        "settings": {
-            **existing_data.get("settings", {}),  # Preserve existing settings
-            **user_data.get("settings", {}),      # Update with user_data settings
-        },
-        "account_type": user_data.get("account_type", existing_data.get("account_type", "")),
-        "admin_id": user_data.get("admin_id", existing_data.get("admin_id", "")),
+        }
+    }
+    merged_data = {**existing_data, **update_data}
+    db._cache[collection_name][user_id] = merged_data
+
+
+    async def _background_update():
+        doc_ref = db.get_async_client().collection(collection_name).document(user_id)
+        # Use Firestore's update instead of set to only update specified fields
+        await doc_ref.update(merged_data)
+
+    get_background_tasks().add_task(_background_update)
+    return merged_data
+
+
+async def update_user_profile_settings(settings_data: UserProfileSettings):
+    collection_name = "all_user_profiles"
+    user_id = settings_data.user_id
+
+    existing_data = db._cache[collection_name].get(user_id, {})
+    
+    # Merge existing settings with new settings
+    existing_settings = existing_data.get("settings", {})
+    merged_settings = {
+        **existing_settings,
+        "show_price_on_purchase": settings_data.show_price_on_purchase
     }
 
-    # Merge with existing data
-    merged_data = {**existing_data, **update_data}
+    # Create update data with proper structure
+    update_data = {
+        "user_id": user_id,
+        "account_type": settings_data.account_type,
+        "admin_id": settings_data.admin_id,
+        "settings": merged_settings
+    }
 
-    # Update cache
+    # Preserve existing data while applying updates
+    merged_data = {**existing_data, **update_data}
     db._cache[collection_name][user_id] = merged_data
 
     async def _background_update():
         doc_ref = db.get_async_client().collection(collection_name).document(user_id)
         # Use Firestore's update instead of set to only update specified fields
-        await doc_ref.update(update_data)
+        await doc_ref.update(merged_data)
 
     get_background_tasks().add_task(_background_update)
     return merged_data
