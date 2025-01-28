@@ -188,8 +188,8 @@ class PaymentMethodAttachReq(BaseModel):
 
 class TopUpWalletReq(BaseModel):
     user_id: str
-    amount: float
+    amount: int
 
 class DeductWalletReq(BaseModel):
     user_id: str
-    amount: float
+    amount: int
