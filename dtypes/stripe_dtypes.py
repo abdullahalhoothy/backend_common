@@ -1,6 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Dict, List, TypeVar, Generic, Literal, Any, Optional
+from typing import Dict, List, TypeVar, Generic, Literal, Any, Optional, Union
 
 
 class PriceReq(BaseModel):
@@ -188,8 +188,8 @@ class PaymentMethodAttachReq(BaseModel):
 
 class TopUpWalletReq(BaseModel):
     user_id: str
-    amount: int
+    amount: Union[int, float]
 
 class DeductWalletReq(BaseModel):
     user_id: str
-    amount: int
+    amount: Union[int, float]

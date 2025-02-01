@@ -8,7 +8,7 @@ from backend_common.dtypes.stripe_dtypes import TopUpWalletReq,DeductWalletReq
 async def top_up_wallet(req: TopUpWalletReq):
     # Access the parameters from the request body
     user_id = req.user_id
-    amount = req.amount
+    amount = int(req.amount)
     # Fetch the customer from Stripe
     customer = await fetch_customer(user_id=user_id)
     if not customer:
@@ -46,7 +46,7 @@ async def fetch_wallet(user_id: str) -> dict:
 async def deduct_from_wallet(req: DeductWalletReq):
     # Access the parameters from the request body
     user_id = req.user_id
-    amount = req.amount
+    amount = int(req.amount)
     # Fetch the customer from Stripe
     customer = await fetch_customer(user_id=user_id)
     if not customer:
