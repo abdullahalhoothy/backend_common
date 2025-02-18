@@ -57,3 +57,4 @@ class ReqChangeEmail(ReqUserId):
 class ReqRefreshToken(BaseModel):
     grant_type: str
     refresh_token: str
+
