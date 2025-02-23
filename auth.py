@@ -1,4 +1,5 @@
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 from typing import Any
 from fastapi import Depends, HTTPException, status, Request
 from backend_common.logging_wrapper import apply_decorator_to_module
@@ -16,6 +17,7 @@ from backend_common.dtypes.auth_dtypes import (
 )
 from backend_common.common_config import CONF
 from .background import get_background_tasks
+import random
 import requests
 import os
 import json
@@ -447,7 +449,12 @@ async def create_user_profile(req: ReqCreateUserProfile):
             "show_price_on_purchase": req.show_price_on_purchase if req.account_type == "admin" else False
         },
         "prdcer": {
-            "prdcer_dataset": {},
+            "prdcer_dataset": {
+                "dataset_plan": "",
+                "progress": random.randint(0, 100),
+                "dataset_next_refresh_date": datetime.now() + relativedelta(months=3),
+                "auto_refresh": True,
+            },
             "prdcer_lyrs": {},
             "prdcer_ctlgs": {},
             "draft_ctlgs": {},
