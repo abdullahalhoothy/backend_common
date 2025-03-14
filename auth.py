@@ -157,7 +157,7 @@ class FirestoreDB:
         if self._sync_client:
             self._sync_client.close()
 
-
+db = None
 # Initialize Firebase admin with firebase credentials
 if os.path.exists(CONF.firebase_sp_path):
     firebase_creds = credentials.Certificate(CONF.firebase_sp_path)
