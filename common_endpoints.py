@@ -7,7 +7,7 @@ from backend_common.dtypes.auth_dtypes import (
     ReqConfirmReset,
     ReqChangePassword,
     ReqRefreshToken,
-    ReqUserId,
+    UserId,
     ReqUserLogin,
     ReqUserProfile,
     ReqUserProfile,

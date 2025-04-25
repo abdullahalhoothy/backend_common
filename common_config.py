@@ -49,9 +49,9 @@ class CommonApiConfig:
     fetch_stripe_customer: str = backend_base_uri + "fetch_stripe_customer"
     delete_stripe_customer: str = backend_base_uri + "delete_stripe_customer"
     list_stripe_customers: str = backend_base_uri + "list_stripe_customers"
+    get_customer_spending: str = backend_base_uri + "get_customer_spending"
 
     # Stripe Subscription
-
     create_stripe_subscription: str = backend_base_uri + "create_stripe_subscription"
     update_stripe_subscription: str = backend_base_uri + "update_stripe_subscription"
     deactivate_stripe_subscription: str = (

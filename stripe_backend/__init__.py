@@ -3,6 +3,7 @@ from backend_common.stripe_backend.customers import (
     fetch_customer,
     update_customer,
     list_customers,
+    get_customer_spending
 )
 from backend_common.stripe_backend.payment_methods import (
     create_payment_method,

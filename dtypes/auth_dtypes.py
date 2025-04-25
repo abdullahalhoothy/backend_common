@@ -1,10 +1,6 @@
 from typing import Dict, List, TypeVar, Generic, Optional, Any
 from pydantic import BaseModel
-
-
-# Base classes
-class ReqUserId(BaseModel):
-    user_id: str
+from all_types.internal_types import UserId
 
 
 class ReqAuth(BaseModel):
@@ -12,7 +8,7 @@ class ReqAuth(BaseModel):
     password: str
 
 
-class UserProfileSettings(ReqUserId):
+class UserProfileSettings(UserId):
     account_type: str = "admin"  # default to admin
     admin_id: Optional[str] = None  # Only required for member accounts
     show_price_on_purchase: bool = False
@@ -31,7 +27,7 @@ class ReqUserLogin(ReqAuth):
     pass
 
 
-class ReqUserProfile(ReqUserId):
+class ReqUserProfile(UserId):
     pass
 
 
@@ -44,11 +40,11 @@ class ReqConfirmReset(BaseModel):
     new_password: str
 
 
-class ReqChangePassword(ReqUserId, ReqAuth):
+class ReqChangePassword(UserId, ReqAuth):
     new_password: str
 
 
-class ReqChangeEmail(ReqUserId):
+class ReqChangeEmail(UserId):
     current_email: str
     new_email: str
     password: str
